@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#12141a"/>
+  <!-- Subtle grid -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <!-- Left accent bar -->
+  <rect x="0" y="0" width="6" height="630" fill="#5aadff"/>
+  <!-- Bottom accent bar -->
+  <rect x="0" y="620" width="1200" height="10" fill="#5aadff" opacity="0.4"/>
+
+  <!-- Baseball icon circle -->
+  <circle cx="140" cy="180" r="80" fill="none" stroke="#5aadff" stroke-width="2" opacity="0.3"/>
+  <circle cx="140" cy="180" r="60" fill="#0a1525"/>
+  <text x="140" y="198" text-anchor="middle" font-size="52" font-family="Arial">⚾</text>
+
+  <!-- Program Title -->
+  <text x="260" y="145" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="400" fill="#5aadff" letter-spacing="4">ELITE BASEBALL ATHLETE TRACKER</text>
+  <text x="260" y="200" font-family="'Segoe UI', Arial, sans-serif" font-size="52" font-weight="700" fill="#edf0f7">Daniel Fajardo JR</text>
+  <text x="260" y="248" font-family="'Segoe UI', Arial, sans-serif" font-size="22" font-weight="400" fill="#8890aa">14U · D1 College Bound · Infield</text>
+
+  <!-- Divider -->
+  <line x1="260" y1="280" x2="1100" y2="280" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+  <!-- Stats Row -->
+  <g transform="translate(260, 320)">
+    <!-- 6 Weeks -->
+    <rect width="160" height="80" rx="12" fill="#0a1525" stroke="#5aadff" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="80" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="30" font-weight="700" fill="#5aadff">6</text>
+    <text x="80" y="58" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#8890aa" letter-spacing="1">WEEKS</text>
+
+    <!-- 18 Sessions -->
+    <rect x="180" width="160" height="80" rx="12" fill="#041610" stroke="#00d9a3" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="260" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="30" font-weight="700" fill="#00d9a3">18</text>
+    <text x="260" y="58" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#8890aa" letter-spacing="1">SESSIONS</text>
+
+    <!-- 3 Days/week -->
+    <rect x="360" width="160" height="80" rx="12" fill="#1c0808" stroke="#ff5c5c" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="440" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="30" font-weight="700" fill="#ff5c5c">3</text>
+    <text x="440" y="58" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#8890aa" letter-spacing="1">DAYS/WEEK</text>
+
+    <!-- DOB -->
+    <rect x="540" width="220" height="80" rx="12" fill="#15172a" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <text x="650" y="32" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#8890aa" letter-spacing="1">DATE OF BIRTH</text>
+    <text x="650" y="62" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="20" font-weight="700" fill="#edf0f7">Sep 5, 2012</text>
+  </g>
+
+  <!-- Bottom tagline -->
+  <text x="260" y="480" font-family="'Segoe UI', Arial, sans-serif" font-size="16" fill="#4a4f62">Strength · Conditioning · Agility · Nutrition · Progress Tracking</text>
+
+  <!-- Phase labels -->
+  <g transform="translate(260, 510)">
+    <rect width="130" height="28" rx="6" fill="#0a1525" stroke="#5aadff" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="65" y="19" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#5aadff" letter-spacing="1">FOUNDATION</text>
+
+    <rect x="148" width="100" height="28" rx="6" fill="#041610" stroke="#00d9a3" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="198" y="19" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#00d9a3" letter-spacing="1">BUILD</text>
+
+    <rect x="266" width="90" height="28" rx="6" fill="#1c0808" stroke="#ff5c5c" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="311" y="19" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#ff5c5c" letter-spacing="1">POWER</text>
+  </g>
+
+  <!-- CashClowns branding -->
+  <text x="1160" y="600" text-anchor="end" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#4a4f62">cashclowns.github.io</text>
+</svg>

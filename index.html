@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Elite Baseball Athlete Tracker | Daniel Fajardo JR · 14U D1 College Bound</title>
+  <meta property="og:type"         content="website"/>
+  <meta property="og:url"          content="https://cashclowns.github.io/daniel-baseball/"/>
+  <meta property="og:title"        content="Elite Baseball Athlete Tracker — Daniel Fajardo JR"/>
+  <meta property="og:description"  content="14U · D1 College Bound · 6-Week Strength, Conditioning &amp; Agility Program · Infield"/>
+  <meta property="og:image"        content="https://cashclowns.github.io/daniel-baseball/preview.svg"/>
+  <meta name="twitter:card"        content="summary_large_image"/>
+  <meta name="twitter:title"       content="Elite Baseball Athlete Tracker — Daniel Fajardo JR"/>
+  <meta name="twitter:description" content="14U · D1 College Bound · 6-Week Strength, Conditioning &amp; Agility Program"/>
+  <meta name="twitter:image"       content="https://cashclowns.github.io/daniel-baseball/preview.svg"/>
+  <meta name="theme-color"         content="#12141a"/>
+  <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#12141a;}</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FIREBASE CONFIG — paste your project config here
+     Get it from: console.firebase.google.com
+     → Your project → Project Settings → Web app → Config
+     ══════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, get,
+         onValue, update }             from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDu1up8A_oI1rlfHPfI2EYMBCPtZ81GPuY",
+  authDomain:        "daniel-baseball-tracker.firebaseapp.com",
+  databaseURL:       "https://daniel-baseball-tracker-default-rtdb.firebaseio.com",
+  projectId:         "daniel-baseball-tracker",
+  storageBucket:     "daniel-baseball-tracker.firebasestorage.app",
+  messagingSenderId: "1082368422777",
+  appId:             "1:1082368422777:web:3ef6d403eafd52ef7475a8",
+  measurementId:     "G-BX621L2JJH",
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// Expose to Babel app
+window.__fbDb  = db;
+window.__fbRef = ref;
+window.__fbSet = set;
+window.__fbGet = get;
+window.__fbOnValue = onValue;
+window.__fbUpdate  = update;
+window.__fbReady   = true;
+</script>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+const { useState, useEffect, useCallback, useRef } = React;
+
+/* ─── TOKENS ──────────────────────────────────────────────── */
+const T = {
+  bg:"#12141a", surface:"#1a1d27", card:"#1e2230", lift:"#252a38",
+  border:"rgba(255,255,255,0.07)", border2:"rgba(255,255,255,0.14)",
+  text:"#edf0f7", sub:"#8890aa", dim:"#454d66",
+  sans:"-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif",
+  mono:"'SF Mono',ui-monospace,monospace",
+  red:"#ff5c5c", teal:"#00d9a3", blue:"#5aadff", amber:"#ffb84d",
+  green:"#4ade80", orange:"#fb923c",
+};
+
+// Identity colors: Daniel = blue, Dad = orange
+const ID = {
+  Daniel: { color: T.blue,   bg: "#081525", label: "Daniel", short: "D" },
+  Dad:    { color: T.orange, bg: "#1a0e04", label: "Dad",    short: "Dad" },
+};
+
+const PHASE = [
+  { label:"Foundation", color:T.blue,  bg:"#081525" },
+  { label:"Build",      color:T.teal,  bg:"#041610" },
+  { label:"Power",      color:T.red,   bg:"#1c0808" },
+];
+const gPhase = (w) => w<=2?0:w<=4?1:2;
+
+const WK = [
+  {sets:3,reps:"10",rest:"60s",note:"Master the form. Light weight.",        inc:"Bodyweight / light"},
+  {sets:3,reps:"10",rest:"60s",note:"Same load — cleaner every rep.",        inc:"Add 5 lbs if form was solid"},
+  {sets:3,reps:"12",rest:"75s",note:"Add 5–10 lbs. Push reps 11 & 12.",     inc:"+5–10 lbs from Week 1"},
+  {sets:3,reps:"12",rest:"75s",note:"Last rep of every set should be hard.", inc:"Hold or add 5 lbs more"},
+  {sets:4,reps:"8", rest:"90s",note:"Heavy. Max effort each set.",           inc:"+10–15 lbs from Week 3"},
+  {sets:4,reps:"10",rest:"90s",note:"Best week yet — leave it all here.",    inc:"Chase a personal best"},
+];
+
+const DAYS = [
+  {
+    short:"MON",label:"Monday",emoji:"⚡",focus:"Lower Body + Agility",color:T.blue,
+    warmup:["Jog 2 laps (3–4 min)","Leg swings — 10 each way","Hip circles — 10 each leg","Inchworm walk — 10 reps","High knees — 20 reps"],
+    exercises:[
+      {name:"Goblet Squat",           tip:"Drive knees out, chest tall",       wt:true, timed:false},
+      {name:"Romanian Deadlift (RDL)",tip:"Hinge at hips, soft knee bend",     wt:true, timed:false},
+      {name:"Lateral Band Walks",     tip:"Stay low in athletic stance",        wt:false,timed:false},
+      {name:"Box Jumps",              tip:"Soft landing — reset each rep",      wt:false,timed:false},
+      {name:"Broad Jumps",            tip:"Max distance — stick the landing",   wt:false,timed:false},
+      {name:"5-10-5 Shuttle",         tip:"Time it — stay low on every cut",    wt:false,timed:true },
+      {name:"Lateral Hurdle Hops",    tip:"Quick feet, light on toes",          wt:false,timed:false},
+    ],
+    cooldown:["Quad stretch — 30s each","Hamstring stretch — 30s each","Hip flexor lunge — 30s each","Foam roll quads & IT band — 2 min"],
+  },
+  {
+    short:"WED",label:"Wednesday",emoji:"🔄",focus:"Rotation + Upper Body",color:T.teal,
+    warmup:["Jump rope — 3 min","Arm circles — 15 each direction","Band pull-aparts — 15 reps","90/90 hip stretch — 30s each side","Thoracic rotation — 10 each side"],
+    exercises:[
+      {name:"Med Ball Rotational Throw",tip:"Drive from hips — mimic throw motion",wt:false,timed:false},
+      {name:"Cable Woodchop (Hi→Lo)",   tip:"Rotational core, control the move",  wt:true, timed:false},
+      {name:"Single-Arm DB Row",        tip:"Flat back, full range of motion",     wt:true, timed:false},
+      {name:"Push-Up Variations",       tip:"Standard → wide → close grip",        wt:false,timed:false},
+      {name:"Pallof Press",             tip:"Anti-rotation — key for infielders",  wt:true, timed:false},
+      {name:"Face Pulls",               tip:"Shoulder health & rotator cuff",      wt:true, timed:false},
+      {name:"Farmer Carry",             tip:"Heavy DBs, upright posture, 40 ft",   wt:true, timed:false},
+    ],
+    cooldown:["Cross-body shoulder — 30s each","Doorway chest stretch — 45s","Child's pose — 45s","Thoracic rotation seated — 10 each"],
+  },
+  {
+    short:"FRI",label:"Friday",emoji:"🏃",focus:"Full Body + Speed",color:T.amber,
+    warmup:["Dynamic jog — 3 min","Glute bridges — 15 reps","Walking lunges — 10 each leg","T-drill walkthrough (slow)","Shoulder band activation — 15 reps"],
+    exercises:[
+      {name:"Trap Bar Deadlift",        tip:"Best total-body lift for teens",    wt:true, timed:false},
+      {name:"Bulgarian Split Squat",    tip:"Rear foot elevated, stay tall",     wt:true, timed:false},
+      {name:"Renegade Row",             tip:"Core + upper body combo",           wt:true, timed:false},
+      {name:"T-Drill",                  tip:"Time every run — beat your record", wt:false,timed:true },
+      {name:"Band Sprints",             tip:"Partner holds band at hips, 15 yd", wt:false,timed:false},
+      {name:"Glute Bridge / Hip Thrust",tip:"Power source for explosiveness",    wt:true, timed:false},
+      {name:"Dead Bug",                 tip:"Slow & controlled, low back flat",  wt:false,timed:false},
+    ],
+    cooldown:["Pigeon pose — 45s each hip","Figure-4 stretch — 30s each","Lat stretch on rack — 30s","Full body foam roll — 3–4 min"],
+  },
+];
+
+const NUT = [
+  {
+    weeks:"Weeks 1–2",cal:"2,200–2,400",protein:"100–110g",carbs:"280–300g",water:"80–96 oz",
+    meals:[
+      {time:"7:00 AM", icon:"🌅",name:"Breakfast",   cal:550,foods:["3 scrambled eggs + 2 slices whole wheat toast","1 cup Greek yogurt with berries","8 oz milk"]},
+      {time:"10:00 AM",icon:"🍎",name:"Morning Snack",cal:250,foods:["1 banana + 2 tbsp peanut butter","OR: Granola bar + string cheese"]},
+      {time:"12:30 PM",icon:"☀️",name:"Lunch",        cal:650,foods:["Grilled chicken sandwich on whole wheat","Rice or sweet potato","Apple or orange"]},
+      {time:"Pre-WO",  icon:"⚡",name:"Pre-Workout",  cal:200,foods:["PB on whole wheat toast","OR: Rice cakes with honey","8–12 oz water"]},
+      {time:"Post-WO", icon:"🥛",name:"Post-Workout", cal:300,foods:["Chocolate milk 16 oz — #1 teen recovery drink","OR: Protein smoothie: milk + banana + PB"]},
+      {time:"6:30 PM", icon:"🌙",name:"Dinner",       cal:700,foods:["6 oz chicken, beef, or fish","1 cup rice, pasta, or potato","2 cups vegetables + glass of milk"]},
+    ],
+    tips:["Eat within 1 hour of waking — skipping breakfast tanks energy","Chocolate milk is genuinely the best teen recovery drink","Don't skip meals — energy crashes hurt performance"],
+  },
+  {
+    weeks:"Weeks 3–4",cal:"2,400–2,600",protein:"110–120g",carbs:"300–320g",water:"96–112 oz",
+    meals:[
+      {time:"7:00 AM", icon:"🌅",name:"Breakfast",   cal:600,foods:["4-egg omelet with spinach and cheese","2 slices whole wheat toast","8 oz OJ or milk"]},
+      {time:"10:00 AM",icon:"🍎",name:"Morning Snack",cal:300,foods:["Trail mix: nuts + dried fruit","String cheese + whole wheat crackers"]},
+      {time:"12:30 PM",icon:"☀️",name:"Lunch",        cal:750,foods:["Chicken burrito bowl: rice + chicken + beans + avocado","Side salad with olive oil dressing"]},
+      {time:"Pre-WO",  icon:"⚡",name:"Pre-Workout",  cal:300,foods:["Oatmeal with honey and banana","OR: Whole wheat bagel + peanut butter","12–16 oz water"]},
+      {time:"Post-WO", icon:"🥛",name:"Post-Workout", cal:400,foods:["Chocolate milk 16 oz","2 hard-boiled eggs + banana","OR: Greek yogurt parfait with granola"]},
+      {time:"6:30 PM", icon:"🌙",name:"Dinner",       cal:800,foods:["8 oz lean protein (chicken, beef, or fish)","1.5 cups rice or pasta","Large veggies + milk"]},
+    ],
+    tips:["Calorie needs rise as intensity goes up — eat more","Add an evening snack if still hungry after dinner","Bring a 32 oz water jug to every session"],
+  },
+  {
+    weeks:"Weeks 5–6",cal:"2,600–2,800",protein:"120–130g",carbs:"320–340g",water:"112–128 oz",
+    meals:[
+      {time:"7:00 AM", icon:"🌅",name:"Breakfast",   cal:650,foods:["Protein pancakes: eggs + oats + banana blended","Greek yogurt on the side","Milk or OJ"]},
+      {time:"10:00 AM",icon:"🍎",name:"Morning Snack",cal:350,foods:["2 hard-boiled eggs + apple","Handful of mixed nuts + 16 oz water"]},
+      {time:"12:30 PM",icon:"☀️",name:"Lunch",        cal:850,foods:["Double chicken sandwich or large burrito wrap","Large rice or pasta + fruit"]},
+      {time:"Pre-WO",  icon:"⚡",name:"Pre-Workout",  cal:350,foods:["Rice + grilled chicken","OR: Banana + PB + glass of milk","16 oz water"]},
+      {time:"Post-WO", icon:"🥛",name:"Post-Workout", cal:450,foods:["Smoothie: milk + banana + PB + Greek yogurt","OR: Chocolate milk + hard-boiled eggs"]},
+      {time:"6:30 PM", icon:"🌙",name:"Dinner",       cal:850,foods:["8–10 oz lean protein","Large complex carbs","2+ cups vegetables + milk"]},
+    ],
+    tips:["Peak training weeks — fuel aggressively or performance drops","Sleep 8–10 hours every night — gains happen during sleep","Track water: 32 oz bottle, aim for 3+ full refills daily"],
+  },
+];
+
+/* ─── PLAYER ──────────────────────────────────────────────── */
+const PLAYER = {
+  name:"Daniel Fajardo JR", birthdate:"September 5, 2012",
+  dob:new Date("2012-09-05"), title:"Elite Baseball Athlete Tracker",
+  subtitle:"14U · D1 College Bound", position:"Infield",
+};
+const getAge = () => {
+  const t=new Date(); let a=t.getFullYear()-PLAYER.dob.getFullYear();
+  const m=t.getMonth()-PLAYER.dob.getMonth();
+  if(m<0||(m===0&&t.getDate()<PLAYER.dob.getDate()))a--; return a;
+};
+
+/* ─── FIREBASE HELPERS ────────────────────────────────────── */
+const ROOT = "djr_tracker";
+const SK = (w,d) => `${ROOT}/sessions/w${w}_d${d}`;
+const stamp = (who) => ({ by: who, at: new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}) });
+
+const fbSet  = (path, val) => { try { window.__fbSet(window.__fbRef(window.__fbDb, path), val); } catch(e){} };
+const fbUpd  = (path, val) => { try { window.__fbUpdate(window.__fbRef(window.__fbDb, path), val); } catch(e){} };
+const fbListen = (path, cb) => window.__fbOnValue(window.__fbRef(window.__fbDb, path), snap => cb(snap.val()));
+
+/* ─── SESSION STRUCTURE ───────────────────────────────────── */
+const emptyEx = (ns) => ({
+  sets: Array.from({length:ns},()=>({done:false,reps:"",by:"",at:""})),
+  weight:"", weightBy:"", weightAt:"",
+  time:"",   timeBy:"",   timeAt:"",
+  feel:"",   feelBy:"",   feelAt:"",
+  notes:"",  notesBy:"",  notesAt:"",
+});
+const emptySession = (di, ns) => ({
+  warmup:   new Array(DAYS[di].warmup.length).fill(false),
+  exercises:DAYS[di].exercises.map(()=>emptyEx(ns)),
+  cooldown: new Array(DAYS[di].cooldown.length).fill(false),
+  energy:"", energyBy:"", energyAt:"",
+  sessionNote:"", noteBy:"", noteAt:"",
+  done:false, date:null, loggedBy:"",
+});
+
+/* ─── ATTRIBUTION BADGE ───────────────────────────────────── */
+function ByBadge({ by, at }) {
+  if (!by) return null;
+  const id = ID[by] || ID.Dad;
+  return (
+    <span title={`${by} · ${at||""}`} style={{
+      background:`${id.color}18`, border:`1px solid ${id.color}40`,
+      color:id.color, borderRadius:5, padding:"1px 6px",
+      fontSize:10, fontFamily:T.mono, fontWeight:700, flexShrink:0,
+    }}>{id.short}</span>
+  );
+}
+
+/* ─── RING ────────────────────────────────────────────────── */
+function Ring({pct,color,size=72,stroke=6}){
+  const r=(size-stroke*2)/2,c=2*Math.PI*r;
+  return(
+    <svg width={size} height={size} style={{transform:"rotate(-90deg)",flexShrink:0}}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={c} strokeDashoffset={c-(pct/100)*c} strokeLinecap="round"
+        style={{transition:"stroke-dashoffset .5s ease"}}/>
+    </svg>
+  );
+}
+
+const iStyle=(color="")=>({
+  background:T.lift, border:`1px solid ${color?color+"30":T.border2}`,
+  borderRadius:8, color:T.text, padding:"10px 12px", fontSize:14,
+  fontFamily:T.sans, width:"100%", boxSizing:"border-box", outline:"none",
+});
+
+/* ─── APP ─────────────────────────────────────────────────── */
+function App() {
+  const [fbReady,   setFbReady]   = useState(false);
+  const [identity,  setIdentity]  = useState(null);  // "Dad"|"Daniel" — device-local
+  const [tab,       setTab]       = useState("workout");
+  const [week,      setWeekRaw]   = useState(1);
+  const [dayIdx,    setDayIdx]    = useState(0);
+  const [session,   setSession]   = useState(null);
+  const [completed, setCompleted] = useState([]);
+  const [syncing,   setSyncing]   = useState(false);
+  const unsubRef = useRef(null);
+
+  // Wait for Firebase module to load
+  useEffect(()=>{
+    const check = setInterval(()=>{
+      if(window.__fbReady){ clearInterval(check); setFbReady(true); }
+    },100);
+    return ()=>clearInterval(check);
+  },[]);
+
+  // Load device identity from localStorage
+  useEffect(()=>{
+    const id = localStorage.getItem("djr_identity");
+    if(id) setIdentity(id);
+  },[]);
+
+  // Subscribe to shared data once FB + identity are ready
+  useEffect(()=>{
+    if(!fbReady || !identity) return;
+    // Load meta
+    fbListen(`${ROOT}/meta`, val => {
+      if(val){ setWeekRaw(val.week||1); setDayIdx(val.dayIdx||0); }
+    });
+    fbListen(`${ROOT}/completed`, val => {
+      setCompleted(val ? Object.values(val) : []);
+    });
+  },[fbReady, identity]);
+
+  // Subscribe to current session
+  useEffect(()=>{
+    if(!fbReady||!identity) return;
+    if(unsubRef.current) unsubRef.current();
+    const path = SK(week,dayIdx);
+    const unsub = fbListen(path, val => {
+      setSession(val || emptySession(dayIdx, WK[week-1].sets));
+    });
+    // onValue returns unsubscribe fn
+    unsubRef.current = unsub;
+    return ()=>{ if(unsubRef.current) unsubRef.current(); };
+  },[fbReady, identity, week, dayIdx]);
+
+  const saveIdentity = (id) => {
+    localStorage.setItem("djr_identity",id); setIdentity(id);
+  };
+
+  const setWeek = (w) => {
+    setWeekRaw(w);
+    fbUpd(`${ROOT}/meta`,{week:w,dayIdx});
+  };
+  const switchDay = (di) => {
+    setDayIdx(di);
+    fbUpd(`${ROOT}/meta`,{week,dayIdx:di});
+  };
+
+  const upd = useCallback((patch) => {
+    setSyncing(true);
+    fbUpd(SK(week,dayIdx), patch);
+    setTimeout(()=>setSyncing(false),600);
+  },[week,dayIdx]);
+
+  const markDone = (loggedBy) => {
+    const k = `w${week}_d${dayIdx}`;
+    const date = new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+    const time = new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    fbUpd(SK(week,dayIdx),{done:true,date,loggedBy,completedAt:`${date} ${time}`});
+    fbSet(`${ROOT}/completed/${k}`,{key:k,week,dayIdx,date,loggedBy,completedAt:`${date} ${time}`});
+  };
+
+  if(!fbReady) return <Splash msg="Connecting to database…"/>;
+  if(!identity) return <IdentityScreen onSelect={saveIdentity}/>;
+  if(!session)  return <Splash msg="Loading tracker…"/>;
+
+  const ph = PHASE[gPhase(week)];
+  const idInfo = ID[identity];
+
+  return(
+    <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",color:T.text}}>
+      <Header week={week} ph={ph} completed={completed} identity={identity} idInfo={idInfo} onSwitch={()=>{localStorage.removeItem("djr_identity");setIdentity(null);}} syncing={syncing}/>
+      <NavBar tab={tab} setTab={setTab} ph={ph}/>
+      <div style={{maxWidth:700,margin:"0 auto",padding:"20px 14px 100px"}}>
+        {tab==="workout"   && <WorkoutTab {...{week,setWeek,dayIdx,switchDay,session,completed,upd,markDone,identity}}/>}
+        {tab==="nutrition" && <NutritionTab week={week}/>}
+        {tab==="progress"  && <ProgressTab {...{completed,week,setWeek,setDayIdx:switchDay,setTab}}/>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── SPLASH ──────────────────────────────────────────────── */
+function Splash({msg}){
+  return(
+    <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
+      <div style={{fontSize:44}}>⚾</div>
+      <div style={{fontSize:15,fontWeight:700,color:T.text}}>{PLAYER.title}</div>
+      <div style={{color:T.sub,fontSize:12,fontFamily:T.mono}}>{msg}</div>
+    </div>
+  );
+}
+
+/* ─── IDENTITY SCREEN ─────────────────────────────────────── */
+function IdentityScreen({onSelect}){
+  return(
+    <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:T.card,border:`1px solid ${T.border2}`,borderRadius:20,padding:"40px 28px",maxWidth:380,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:16}}>⚾</div>
+        <div style={{fontSize:22,fontWeight:700,marginBottom:6}}>{PLAYER.title}</div>
+        <div style={{fontSize:13,color:T.sub,marginBottom:32,lineHeight:1.6}}>
+          Who is using this device?<br/>
+          <span style={{fontSize:11,color:T.dim}}>This is saved on your phone — you only choose once.</span>
+        </div>
+        <div style={{display:"flex",gap:14}}>
+          {["Daniel","Dad"].map(who=>{
+            const id=ID[who];
+            return(
+              <button key={who} onClick={()=>onSelect(who)} style={{
+                flex:1,background:id.bg,border:`2px solid ${id.color}`,
+                borderRadius:16,padding:"24px 12px",cursor:"pointer",
+                display:"flex",flexDirection:"column",alignItems:"center",gap:10,
+                transition:"all .2s",
+              }}>
+                <div style={{width:56,height:56,borderRadius:"50%",background:id.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff"}}>
+                  {who==="Daniel"?"D":"👨"}
+                </div>
+                <div style={{fontSize:16,fontWeight:700,color:id.color}}>{who}</div>
+                <div style={{fontSize:11,color:T.sub}}>{who==="Daniel"?"Player":"Coach / Dad"}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── HEADER ──────────────────────────────────────────────── */
+function Header({week,ph,completed,identity,idInfo,onSwitch,syncing}){
+  const total=completed.length, pct=Math.round(total/18*100), age=getAge();
+  return(
+    <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`}}>
+      <div style={{background:"#0d1016",borderBottom:`1px solid ${T.border}`,padding:"9px 18px"}}>
+        <div style={{maxWidth:700,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:22}}>⚾</span>
+            <div>
+              <div style={{fontSize:14,fontWeight:700,color:T.text}}>{PLAYER.title}</div>
+              <div style={{fontSize:10,color:ph.color,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginTop:1}}>{PLAYER.subtitle}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {syncing && <span style={{fontSize:10,color:T.dim,fontFamily:T.mono}}>saving…</span>}
+            {/* Identity badge — tap to switch */}
+            <button onClick={onSwitch} title="Switch profile" style={{
+              background:`${idInfo.color}15`,border:`1px solid ${idInfo.color}50`,
+              borderRadius:8,padding:"4px 10px",cursor:"pointer",
+              display:"flex",alignItems:"center",gap:6,
+            }}>
+              <span style={{fontSize:11,color:idInfo.color,fontWeight:700,fontFamily:T.mono}}>{identity}</span>
+              <span style={{fontSize:9,color:T.dim}}>↕</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"12px 18px"}}>
+        <div style={{maxWidth:700,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:21,fontWeight:700,letterSpacing:-.3}}>{PLAYER.name}</div>
+            <div style={{fontSize:11,color:T.sub,fontFamily:T.mono,marginTop:3}}>DOB: {PLAYER.birthdate} · {PLAYER.position} · Age {age}</div>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
+              <div style={{flex:1,maxWidth:180,height:5,background:"rgba(255,255,255,0.06)",borderRadius:4,overflow:"hidden"}}>
+                <div style={{width:`${pct}%`,height:"100%",background:ph.color,borderRadius:4,transition:"width .5s ease"}}/>
+              </div>
+              <span style={{fontSize:11,color:T.sub,fontFamily:T.mono,whiteSpace:"nowrap"}}>{total}/18 · {pct}%</span>
+            </div>
+          </div>
+          <div style={{background:ph.bg,border:`1px solid ${ph.color}35`,borderRadius:14,padding:"10px 16px",textAlign:"center",flexShrink:0}}>
+            <div style={{fontSize:10,color:ph.color,fontFamily:T.mono,letterSpacing:2}}>WEEK</div>
+            <div style={{fontSize:32,fontWeight:700,color:ph.color,lineHeight:1.1}}>{week}</div>
+            <div style={{fontSize:10,color:T.sub,fontFamily:T.mono,marginTop:1}}>{PHASE[gPhase(week)].label.toUpperCase()}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── NAV ─────────────────────────────────────────────────── */
+function NavBar({tab,setTab,ph}){
+  return(
+    <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,position:"sticky",top:0,zIndex:30}}>
+      <div style={{maxWidth:700,margin:"0 auto",display:"flex"}}>
+        {[["workout","Workout","💪"],["nutrition","Nutrition","🥗"],["progress","Progress","📊"]].map(([id,lbl,icon])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{
+            flex:1,background:"none",border:"none",
+            borderBottom:tab===id?`2px solid ${ph.color}`:"2px solid transparent",
+            padding:"12px 8px",cursor:"pointer",color:tab===id?T.text:T.sub,
+            fontSize:13,fontFamily:T.sans,transition:"all .2s",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+          }}>
+            <span style={{fontSize:15}}>{icon}</span>{lbl}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Label({text}){ return<div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:8}}>{text}</div>; }
+
+function Accordion({title,badge,color,open,onToggle,children}){
+  return(
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,overflow:"hidden",marginBottom:10}}>
+      <button onClick={onToggle} style={{width:"100%",background:"none",border:"none",padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",color:T.text}}>
+        <span style={{fontSize:14,fontWeight:700}}>{title}</span>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:11,color:T.sub,fontFamily:T.mono}}>{badge}</span>
+          <div style={{width:24,height:24,borderRadius:6,background:`${color}18`,border:`1px solid ${color}35`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{color,fontSize:14,lineHeight:1}}>{open?"−":"+"}</span>
+          </div>
+        </div>
+      </button>
+      {open&&<div style={{padding:"4px 0 8px"}}>{children}</div>}
+    </div>
+  );
+}
+
+function CheckRow({checked,onToggle,label,color,by,at}){
+  return(
+    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 18px",cursor:"pointer",background:checked?`${color}08`:"transparent",transition:"background .15s"}}>
+      <div style={{width:22,height:22,borderRadius:6,flexShrink:0,background:checked?color:"transparent",border:`2px solid ${checked?color:T.dim}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+        {checked&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}
+      </div>
+      <span style={{flex:1,fontSize:13,color:checked?T.sub:T.text,textDecoration:checked?"line-through":"none"}}>{label}</span>
+      {checked&&by&&<ByBadge by={by} at={at}/>}
+    </div>
+  );
+}
+
+/* ─── EX CARD ─────────────────────────────────────────────── */
+function ExCard({ex,cfg,data,color,identity,onToggleSet,onUpdateSetReps,onChange}){
+  const[open,setOpen]=useState(false);
+  if(!data)return null;
+  const sets = Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
+  const allDone = sets.length>0&&sets.every(s=>s.done);
+  const doneSets = sets.filter(s=>s.done).length;
+
+  return(
+    <div style={{background:allDone?`${color}0c`:T.card,border:`1px solid ${allDone?color+"40":T.border}`,borderRadius:14,overflow:"hidden",transition:"all .2s"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(v=>!v)}>
+        <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,background:allDone?color:"rgba(255,255,255,0.1)",border:`2px solid ${allDone?color:T.dim}`,transition:"all .2s"}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:700,color:allDone?T.sub:T.text,textDecoration:allDone?"line-through":"none"}}>{ex.name}</div>
+          <div style={{fontSize:11,color:T.dim,marginTop:2}}>{ex.tip}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <span style={{fontSize:12,fontFamily:T.mono,color:allDone?color:T.sub}}>{doneSets}/{cfg.sets}</span>
+          {data.feel&&<span style={{fontSize:14}}>{data.feel==="easy"?"😊":data.feel==="good"?"💪":"😤"}</span>}
+          {data.feelBy&&<ByBadge by={data.feelBy} at={data.feelAt}/>}
+          <span style={{color:T.dim,fontSize:11}}>{open?"▲":"▼"}</span>
+        </div>
+      </div>
+
+      {/* Set Bubbles — always visible */}
+      <div style={{padding:"0 16px 14px",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-start"}}>
+        {sets.map((s,si)=>(
+          <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            <button onClick={()=>onToggleSet(si)} style={{
+              width:42,height:42,borderRadius:12,
+              background:s.done?color:"#1a1e2b",border:`2px solid ${s.done?color:T.border2}`,
+              color:s.done?"#fff":T.sub,fontSize:12,fontWeight:700,fontFamily:T.mono,
+              cursor:"pointer",transition:"all .2s",
+            }}>S{si+1}</button>
+            {s.done&&s.by&&<ByBadge by={s.by} at={s.at}/>}
+            <input value={s.reps||""} onChange={e=>onUpdateSetReps(si,e.target.value)}
+              placeholder={cfg.reps} onClick={e=>e.stopPropagation()}
+              style={{width:42,background:"#1a1e2b",border:`1px solid ${T.border}`,borderRadius:6,color:T.sub,padding:"3px 0",fontSize:11,fontFamily:T.mono,textAlign:"center",outline:"none"}}/>
+          </div>
+        ))}
+        {/* Weight / Time field */}
+        {(ex.wt||ex.timed)&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            <div style={{width:42,height:42,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,fontSize:18}}>{ex.wt?"🏋️":"⏱️"}</div>
+            {(data.weightBy||data.timeBy)&&<ByBadge by={ex.wt?data.weightBy:data.timeBy} at={ex.wt?data.weightAt:data.timeAt}/>}
+            <input value={ex.wt?(data.weight||""):(data.time||"")}
+              onChange={e=>onChange(ex.wt?{weight:e.target.value,...stamp(identity)&&{weightBy:identity,weightAt:stamp(identity).at}}:{time:e.target.value,timeBy:identity,timeAt:stamp(identity).at})}
+              placeholder={ex.wt?"lbs":"sec"}
+              style={{width:42,background:"#1a1e2b",border:`1px solid ${color}40`,borderRadius:6,color,padding:"3px 0",fontSize:11,fontFamily:T.mono,textAlign:"center",outline:"none"}}/>
+          </div>
+        )}
+      </div>
+
+      {/* Expanded: Feel + Notes */}
+      {open&&(
+        <div style={{borderTop:`1px solid ${T.border}`,padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <div style={{fontSize:12,color:T.sub,marginBottom:8,fontWeight:600}}>How did it feel?</div>
+            <div style={{display:"flex",gap:8}}>
+              {[["easy","Easy","😊",T.green],["good","Good","💪",T.blue],["hard","Hard","😤",T.red]].map(([val,lbl,ic,col])=>(
+                <button key={val} onClick={()=>onChange({feel:data.feel===val?"":val,feelBy:identity,feelAt:stamp(identity).at})} style={{
+                  flex:1,padding:"9px 6px",borderRadius:10,
+                  background:data.feel===val?`${col}20`:"#1a1e2b",
+                  border:`1px solid ${data.feel===val?col:T.border}`,
+                  color:data.feel===val?col:T.sub,
+                  fontSize:12,fontFamily:T.sans,cursor:"pointer",transition:"all .2s",
+                }}>{ic} {lbl}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:12,color:T.sub,fontWeight:600}}>Notes</div>
+              {data.notesBy&&<ByBadge by={data.notesBy} at={data.notesAt}/>}
+            </div>
+            <textarea value={data.notes||""} onChange={e=>onChange({notes:e.target.value,notesBy:identity,notesAt:stamp(identity).at})}
+              placeholder="Form notes, how it felt, what to improve…"
+              rows={2} style={{...iStyle(),resize:"none",fontSize:13}}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── WORKOUT TAB ─────────────────────────────────────────── */
+function WorkoutTab({week,setWeek,dayIdx,switchDay,session,completed,upd,markDone,identity}){
+  const cfg=WK[week-1], day=DAYS[dayIdx], ph=PHASE[gPhase(week)];
+  const sk=`w${week}_d${dayIdx}`;
+  const isDone = session.done||completed.some(c=>c.key===sk);
+  const exercises = session.exercises
+    ? (Array.isArray(session.exercises)?session.exercises:Object.values(session.exercises))
+    : [];
+  const warmup  = session.warmup ? (Array.isArray(session.warmup)?session.warmup:Object.values(session.warmup)) : [];
+  const cooldown = session.cooldown ? (Array.isArray(session.cooldown)?session.cooldown:Object.values(session.cooldown)) : [];
+  const exDone  = exercises.filter(e=>{ const s=Array.isArray(e.sets)?e.sets:Object.values(e.sets||{}); return s.length>0&&s.every(x=>x.done); }).length;
+  const exTotal = exercises.length;
+  const pct     = exTotal>0?Math.round(exDone/exTotal*100):0;
+  const warmDone = warmup.filter(Boolean).length;
+  const coolDone = cooldown.filter(Boolean).length;
+  const [showWarm, setShowWarm] = useState(true);
+  const [showCool, setShowCool] = useState(false);
+  const [whoLogged, setWhoLogged] = useState(identity);
+
+  const s = stamp(identity);
+
+  const toggleWarmup = (i) => {
+    const a = [...warmup]; a[i] = !a[i];
+    // Store warmup as {done, by, at} per item
+    const meta = session.warmupMeta ? (Array.isArray(session.warmupMeta)?[...session.warmupMeta]:[...Object.values(session.warmupMeta)]) : Array(warmup.length).fill(null);
+    meta[i] = a[i] ? {by:identity,at:s.at} : null;
+    upd({warmup:a, warmupMeta:meta});
+  };
+  const toggleCooldown = (i) => {
+    const a = [...cooldown]; a[i] = !a[i];
+    const meta = session.cooldownMeta ? (Array.isArray(session.cooldownMeta)?[...session.cooldownMeta]:[...Object.values(session.cooldownMeta)]) : Array(cooldown.length).fill(null);
+    meta[i] = a[i] ? {by:identity,at:s.at} : null;
+    upd({cooldown:a, cooldownMeta:meta});
+  };
+  const updateEx = (i, patch) => {
+    const a = [...exercises]; a[i] = {...a[i],...patch};
+    upd({exercises:a});
+  };
+  const toggleSet = (ei, si) => {
+    const a=[...exercises];
+    const sets=Array.isArray(a[ei].sets)?[...a[ei].sets]:[...Object.values(a[ei].sets||{})];
+    const done=!sets[si].done;
+    sets[si]={...sets[si],done,...(done?{by:identity,at:s.at}:{by:"",at:""})};
+    a[ei]={...a[ei],sets}; upd({exercises:a});
+  };
+  const updateSetReps = (ei, si, val) => {
+    const a=[...exercises];
+    const sets=Array.isArray(a[ei].sets)?[...a[ei].sets]:[...Object.values(a[ei].sets||{})];
+    sets[si]={...sets[si],reps:val}; a[ei]={...a[ei],sets}; upd({exercises:a});
+  };
+
+  const warmupMeta = session.warmupMeta ? (Array.isArray(session.warmupMeta)?session.warmupMeta:Object.values(session.warmupMeta)) : [];
+  const cooldownMeta = session.cooldownMeta ? (Array.isArray(session.cooldownMeta)?session.cooldownMeta:Object.values(session.cooldownMeta)) : [];
+
+  return(
+    <div>
+      {/* Week Selector */}
+      <div style={{marginBottom:20}}>
+        <Label text="Select Week"/>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
+          {[1,2,3,4,5,6].map(w=>{
+            const wp=PHASE[gPhase(w)],wDone=completed.filter(c=>c.week===w).length,active=w===week;
+            return(
+              <button key={w} onClick={()=>setWeek(w)} style={{background:active?wp.color:T.card,border:`1px solid ${active?wp.color:wDone===3?wp.color+"44":T.border}`,borderRadius:10,padding:"9px 4px",cursor:"pointer",textAlign:"center",transition:"all .2s"}}>
+                <div style={{fontSize:13,fontWeight:700,color:active?"#fff":T.sub,fontFamily:T.mono}}>W{w}</div>
+                <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:5}}>
+                  {[0,1,2].map(di=><div key={di} style={{width:5,height:5,borderRadius:"50%",background:completed.some(c=>c.key===`w${w}_d${di}`)?(active?"#fff":wp.color):"rgba(255,255,255,0.1)"}}/>)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Phase Banner */}
+      <div style={{background:ph.bg,border:`1px solid ${ph.color}25`,borderRadius:14,padding:"14px 18px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:11,color:ph.color,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>{ph.label} Phase · Week {week}</div>
+          <div style={{fontSize:14,color:T.text}}>{cfg.note}</div>
+          <div style={{fontSize:11,color:T.sub,marginTop:3}}>Load: {cfg.inc}</div>
+        </div>
+        <div style={{textAlign:"center",flexShrink:0,marginLeft:12}}>
+          <div style={{fontSize:22,fontWeight:700,color:ph.color,fontFamily:T.mono}}>{cfg.sets}×{cfg.reps}</div>
+          <div style={{fontSize:10,color:T.sub,fontFamily:T.mono}}>{cfg.rest} rest</div>
+        </div>
+      </div>
+
+      {/* Day Tabs */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
+        {DAYS.map((d,i)=>{
+          const k=`w${week}_d${i}`,done=completed.some(c=>c.key===k),active=dayIdx===i;
+          return(
+            <button key={i} onClick={()=>switchDay(i)} style={{background:active?d.color:T.card,border:`2px solid ${active?d.color:done?d.color+"55":T.border}`,borderRadius:14,padding:"14px 10px",cursor:"pointer",textAlign:"center",transition:"all .25s",position:"relative"}}>
+              {done&&!active&&<span style={{position:"absolute",top:7,right:9,fontSize:10,color:d.color,fontWeight:700}}>✓</span>}
+              <div style={{fontSize:24,marginBottom:5}}>{d.emoji}</div>
+              <div style={{fontSize:13,fontWeight:700,color:active?"#fff":T.sub,fontFamily:T.mono}}>{d.short}</div>
+              <div style={{fontSize:11,color:active?"rgba(255,255,255,.65)":T.dim,marginTop:2}}>{d.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Progress Ring */}
+      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"16px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:18}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <Ring pct={pct} color={isDone?T.green:day.color} size={72} stroke={6}/>
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:13,fontWeight:700,color:isDone?T.green:day.color,fontFamily:T.mono}}>{pct}%</span>
+          </div>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>{isDone?"Workout Complete! 🎉":`${exDone}/${exTotal} exercises done`}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"6px 16px"}}>
+            {[["💪",`${exDone}/${exTotal} exercises`],["🔥",`${warmDone}/${day.warmup.length} warm-up`],["❄️",`${coolDone}/${day.cooldown.length} cool-down`]].map(([icon,txt])=>(
+              <span key={txt} style={{fontSize:12,color:T.sub}}>{icon} {txt}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Energy */}
+      {!isDone&&(
+        <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 18px",marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:600}}>Pre-Workout Energy</div>
+            {session.energyBy&&<ByBadge by={session.energyBy} at={session.energyAt}/>}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {["😴 1","😐 2","🙂 3","😤 4","🔥 5"].map((lbl,i)=>{
+              const val=String(i+1),s=stamp(identity);
+              return<button key={i} onClick={()=>upd({energy:val,energyBy:identity,energyAt:s.at})} style={{flex:1,padding:"9px 4px",borderRadius:9,background:session.energy===val?`${day.color}30`:"#1a1e2b",border:`1px solid ${session.energy===val?day.color:T.border}`,color:session.energy===val?day.color:T.sub,fontSize:12,fontFamily:T.sans,cursor:"pointer",transition:"all .2s",textAlign:"center"}}>{lbl}</button>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Warm-Up */}
+      <Accordion title="Warm-Up" badge={`${warmDone}/${day.warmup.length}`} color={day.color} open={showWarm} onToggle={()=>setShowWarm(v=>!v)}>
+        {day.warmup.map((item,i)=>(
+          <CheckRow key={i} checked={!!warmup[i]} onToggle={()=>toggleWarmup(i)} label={item} color={day.color}
+            by={warmupMeta[i]?.by} at={warmupMeta[i]?.at}/>
+        ))}
+      </Accordion>
+
+      {/* Exercises */}
+      <div style={{marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <Label text="Exercises"/>
+          <span style={{fontSize:11,color:T.sub,fontFamily:T.mono}}>{cfg.sets} sets × {cfg.reps} reps · {cfg.rest} rest</span>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {day.exercises.map((ex,i)=>(
+            <ExCard key={i} ex={ex} cfg={cfg} data={exercises[i]||emptyEx(cfg.sets)} color={day.color} identity={identity}
+              onToggleSet={(si)=>toggleSet(i,si)}
+              onUpdateSetReps={(si,v)=>updateSetReps(i,si,v)}
+              onChange={(patch)=>updateEx(i,patch)}/>
+          ))}
+        </div>
+      </div>
+
+      {/* Cool-Down */}
+      <Accordion title="Cool-Down" badge={`${coolDone}/${day.cooldown.length}`} color={day.color} open={showCool} onToggle={()=>setShowCool(v=>!v)}>
+        {day.cooldown.map((item,i)=>(
+          <CheckRow key={i} checked={!!cooldown[i]} onToggle={()=>toggleCooldown(i)} label={item} color={day.color}
+            by={cooldownMeta[i]?.by} at={cooldownMeta[i]?.at}/>
+        ))}
+      </Accordion>
+
+      {/* Session Notes */}
+      {!isDone&&(
+        <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 18px",marginTop:4,marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:13,fontWeight:600}}>Session Notes</div>
+            {session.noteBy&&<ByBadge by={session.noteBy} at={session.noteAt}/>}
+          </div>
+          <textarea value={session.sessionNote||""} onChange={e=>{const s=stamp(identity);upd({sessionNote:e.target.value,noteBy:identity,noteAt:s.at});}}
+            placeholder="How did the workout go? PRs, highlights, notes…"
+            rows={3} style={{...iStyle(),resize:"none",fontSize:13}}/>
+        </div>
+      )}
+
+      {/* Mark Complete */}
+      {!isDone?(
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div style={{flex:1,fontSize:13,fontWeight:600,color:T.sub}}>Completing as:</div>
+            {["Daniel","Dad"].map(who=>{
+              const id=ID[who];
+              return<button key={who} onClick={()=>setWhoLogged(who)} style={{padding:"8px 20px",borderRadius:9,background:whoLogged===who?`${id.color}25`:"#1a1e2b",border:`1px solid ${whoLogged===who?id.color:T.border}`,color:whoLogged===who?id.color:T.sub,fontSize:13,fontFamily:T.sans,cursor:"pointer",fontWeight:600}}>{who}</button>;
+            })}
+          </div>
+          <button onClick={pct===100?()=>markDone(whoLogged):undefined} style={{width:"100%",background:pct===100?day.color:T.card,border:`2px solid ${pct===100?day.color:T.border}`,borderRadius:14,padding:"17px",color:pct===100?"#fff":T.dim,fontSize:15,fontWeight:700,fontFamily:T.sans,cursor:pct===100?"pointer":"default",transition:"all .3s"}}>
+            {pct===100?"✓  Mark Workout Complete":`Finish all ${exTotal} exercises to unlock`}
+          </button>
+        </div>
+      ):(
+        <div style={{background:"#071610",border:`1px solid ${T.green}35`,borderRadius:14,padding:"22px",textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:8}}>🏆</div>
+          <div style={{fontSize:19,fontWeight:700,color:T.green,marginBottom:4}}>Workout Complete!</div>
+          <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+            {session.date&&<span style={{fontSize:12,color:T.sub,fontFamily:T.mono}}>{session.date}</span>}
+            {session.loggedBy&&<ByBadge by={session.loggedBy} at={session.completedAt}/>}
+          </div>
+          {session.sessionNote&&<div style={{marginTop:12,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 14px",fontSize:13,color:T.sub,textAlign:"left",lineHeight:1.5}}>"{session.sessionNote}"</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── NUTRITION TAB ───────────────────────────────────────── */
+function NutritionTab({week}){
+  const[sel,setSel]=useState(gPhase(week));
+  const n=NUT[sel],ph=PHASE[sel];
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}}>
+        {PHASE.map((p,i)=>(
+          <button key={i} onClick={()=>setSel(i)} style={{background:sel===i?p.color:T.card,border:`1px solid ${sel===i?p.color:T.border}`,borderRadius:12,padding:"12px 8px",cursor:"pointer",textAlign:"center",transition:"all .2s"}}>
+            <div style={{fontSize:13,fontWeight:700,color:sel===i?"#fff":T.sub}}>{p.label}</div>
+            <div style={{fontSize:10,color:sel===i?"rgba(255,255,255,.6)":T.dim,marginTop:2,fontFamily:T.mono}}>{NUT[i].weeks}</div>
+          </button>
+        ))}
+      </div>
+      <div style={{background:ph.bg,border:`1px solid ${ph.color}25`,borderRadius:16,padding:"16px 18px",marginBottom:20}}>
+        <Label text="Daily Targets"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {[["🔥","Calories",n.cal],["💪","Protein",n.protein],["⚡","Carbs",n.carbs],["💧","Water",n.water]].map(([ic,lbl,val])=>(
+            <div key={lbl} style={{background:"rgba(0,0,0,.25)",borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontSize:16,marginBottom:4}}>{ic}</div>
+              <div style={{fontSize:17,fontWeight:700,color:ph.color}}>{val}</div>
+              <div style={{fontSize:11,color:T.sub,marginTop:2}}>{lbl}/day</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Label text="Daily Meal Plan"/>
+      {n.meals.map((meal,mi)=>(
+        <div key={mi} style={{display:"flex",gap:14,marginBottom:8}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
+            <div style={{width:38,height:38,borderRadius:10,background:ph.bg,border:`1px solid ${ph.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{meal.icon}</div>
+            {mi<n.meals.length-1&&<div style={{width:1,flex:1,minHeight:8,background:T.border,marginTop:3}}/>}
+          </div>
+          <div style={{flex:1,background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 14px",marginBottom:4}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700}}>{meal.name}</div>
+                <div style={{fontSize:11,color:ph.color,fontFamily:T.mono,marginTop:1}}>{meal.time}</div>
+              </div>
+              <span style={{background:`${ph.color}18`,border:`1px solid ${ph.color}30`,borderRadius:8,padding:"3px 9px",fontSize:12,color:ph.color,fontFamily:T.mono,fontWeight:700}}>{meal.cal} cal</span>
+            </div>
+            {meal.foods.map((f,fi)=>(
+              <div key={fi} style={{display:"flex",gap:6,marginBottom:4,alignItems:"flex-start"}}>
+                <span style={{color:ph.color,fontSize:10,marginTop:2,flexShrink:0}}>›</span>
+                <span style={{fontSize:12,color:T.sub,lineHeight:1.4}}>{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",marginTop:8}}>
+        <Label text="Phase Notes"/>
+        {n.tips.map((tip,i)=>(
+          <div key={i} style={{display:"flex",gap:10,padding:"9px 0",borderBottom:i<n.tips.length-1?`1px solid ${T.border}`:"none"}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:ph.color,flexShrink:0,marginTop:6}}/>
+            <span style={{fontSize:13,color:T.sub,lineHeight:1.6}}>{tip}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── PROGRESS TAB ────────────────────────────────────────── */
+function ProgressTab({completed,week,setWeek,setDayIdx,setTab}){
+  const total=completed.length, pct=Math.round(total/18*100);
+  const danielCount = completed.filter(c=>c.loggedBy==="Daniel").length;
+  const dadCount    = completed.filter(c=>c.loggedBy==="Dad").length;
+  const streak=(()=>{
+    if(!completed.length)return 0;
+    const sorted=[...completed].sort((a,b)=>(b.week*3+b.dayIdx)-(a.week*3+a.dayIdx));
+    let s=1;
+    for(let i=1;i<sorted.length;i++){if((sorted[i-1].week*3+sorted[i-1].dayIdx)-(sorted[i].week*3+sorted[i].dayIdx)===1)s++;else break;}
+    return s;
+  })();
+
+  return(
+    <div>
+      {/* Hero */}
+      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"20px",marginBottom:16,display:"flex",gap:20,alignItems:"center"}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <Ring pct={pct} color={T.green} size={84} stroke={7}/>
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:18,fontWeight:700,color:T.green,fontFamily:T.mono}}>{pct}%</span>
+          </div>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>{total} of 18 sessions</div>
+          <div style={{fontSize:12,color:T.sub,marginBottom:12}}>{18-total} remaining</div>
+          <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+            {[[streak,"Streak",T.amber],[Math.min(week,6),"Week",T.blue],[completed.filter(c=>c.week===week).length+"/3","This week",T.teal]].map(([v,l,c])=>(
+              <div key={l}><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:T.mono}}>{v}</div><div style={{fontSize:11,color:T.sub}}>{l}</div></div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Who's logging */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+        {[["Daniel",danielCount,T.blue],["Dad",dadCount,T.orange]].map(([who,count,color])=>(
+          <div key={who} style={{background:T.card,border:`1px solid ${color}30`,borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:40,height:40,borderRadius:10,background:`${color}15`,border:`1px solid ${color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color,flexShrink:0}}>{who==="Daniel"?"D":"👨"}</div>
+            <div>
+              <div style={{fontSize:18,fontWeight:700,color}}>{count}</div>
+              <div style={{fontSize:11,color:T.sub}}>{who} logged</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 6-Week Map */}
+      <Label text="6-Week Map — tap to open"/>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
+        {[1,2,3,4,5,6].map(w=>{
+          const wp=PHASE[gPhase(w)],active=w===week,wDone=completed.filter(c=>c.week===w).length;
+          return(
+            <div key={w} style={{display:"flex",gap:8,alignItems:"stretch"}}>
+              <button onClick={()=>{setWeek(w);setTab("workout");}} style={{background:active?wp.color:wDone===3?`${wp.color}15`:T.card,border:`1px solid ${active?wp.color:wDone===3?wp.color+"55":T.border}`,borderRadius:10,padding:"0 10px",cursor:"pointer",minWidth:48,textAlign:"center",color:active?"#fff":wDone===3?wp.color:T.sub,transition:"all .2s"}}>
+                <div style={{fontSize:12,fontWeight:700,fontFamily:T.mono}}>W{w}</div>
+                <div style={{fontSize:9,opacity:.7,fontFamily:T.mono}}>{wDone===3?"✓":wDone+"/3"}</div>
+              </button>
+              <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                {DAYS.map((d,di)=>{
+                  const k=`w${w}_d${di}`,rec=completed.find(c=>c.key===k);
+                  const logId = rec?.loggedBy ? ID[rec.loggedBy] : null;
+                  return(
+                    <div key={di} onClick={()=>{setWeek(w);setDayIdx(di);setTab("workout");}} style={{background:rec?`${d.color}15`:T.card,border:`1px solid ${rec?d.color+"55":T.border}`,borderRadius:10,padding:"8px 6px",textAlign:"center",cursor:"pointer",transition:"all .2s"}}>
+                      <div style={{fontSize:11,color:rec?d.color:T.dim,fontFamily:T.mono,fontWeight:700}}>{d.short}</div>
+                      <div style={{fontSize:16,margin:"3px 0",color:rec?d.color:T.dim}}>{rec?"✓":"○"}</div>
+                      {rec&&logId&&(
+                        <div style={{fontSize:9,color:logId.color,fontFamily:T.mono,fontWeight:700}}>{logId.short}</div>
+                      )}
+                      {rec?.date&&<div style={{fontSize:9,color:T.dim,fontFamily:T.mono}}>{rec.date}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Session Log */}
+      <Label text="Session Log"/>
+      {completed.length===0?(
+        <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"36px 20px",textAlign:"center"}}>
+          <div style={{fontSize:38,marginBottom:10}}>⚾</div>
+          <div style={{fontSize:15,color:T.sub}}>No workouts logged yet</div>
+          <div style={{fontSize:12,color:T.dim,marginTop:5}}>Head to Workout to get started</div>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[...completed].sort((a,b)=>(b.week*3+b.dayIdx)-(a.week*3+a.dayIdx)).map((c,i)=>{
+            const d=DAYS[c.dayIdx],logId=c.loggedBy?ID[c.loggedBy]:null;
+            return(
+              <div key={i} onClick={()=>{setWeek(c.week);setDayIdx(c.dayIdx);setTab("workout");}} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"13px 16px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+                <div style={{width:40,height:40,borderRadius:10,background:`${d.color}15`,border:`1px solid ${d.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{d.emoji}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700}}>Week {c.week} · {d.label}</div>
+                  <div style={{fontSize:12,color:T.sub,marginTop:1}}>{d.focus}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  {c.date&&<div style={{fontSize:11,color:T.sub,fontFamily:T.mono}}>{c.date}</div>}
+                  {logId&&<ByBadge by={c.loggedBy} at={c.completedAt}/>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
