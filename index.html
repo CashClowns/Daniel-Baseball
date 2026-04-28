@@ -30,25 +30,84 @@
       -webkit-font-smoothing:antialiased;
       overscroll-behavior-y:none;
     }
-    /* Prevent iOS zoom on input focus — must be 16px+ */
     input, textarea, select { font-size:16px !important; }
-    /* Remove tap highlight flash on iOS */
     * { -webkit-tap-highlight-color:transparent; }
-    /* Smooth native scrolling */
     .scroll-view { -webkit-overflow-scrolling:touch; overflow-y:auto; }
-    /* Bottom nav safe area */
     .bottom-nav {
       position:fixed;
       bottom:0; left:0; right:0;
       padding-bottom:env(safe-area-inset-bottom);
       z-index:50;
     }
-    /* Main content clears the bottom nav */
     .main-content {
       padding-bottom:calc(72px + env(safe-area-inset-bottom));
     }
-    /* iOS add-to-homescreen banner hint */
     #root { min-height:100dvh; }
+
+    /* ── COMPLETION ANIMATIONS ── */
+    @keyframes pop {
+      0%   { transform:scale(1); }
+      40%  { transform:scale(1.22); }
+      70%  { transform:scale(0.92); }
+      100% { transform:scale(1); }
+    }
+    @keyframes glow-pulse {
+      0%,100% { box-shadow: 0 0 6px var(--gc), 0 0 14px var(--gc); }
+      50%     { box-shadow: 0 0 14px var(--gc), 0 0 30px var(--gc), 0 0 50px var(--gc); }
+    }
+    @keyframes check-pop {
+      0%   { transform:scale(0.5) rotate(-10deg); opacity:0; }
+      60%  { transform:scale(1.2) rotate(4deg); opacity:1; }
+      100% { transform:scale(1) rotate(0deg); opacity:1; }
+    }
+    @keyframes fill-slide {
+      from { clip-path:inset(0 100% 0 0); }
+      to   { clip-path:inset(0 0% 0 0); }
+    }
+    @keyframes ring-spin-in {
+      from { stroke-dashoffset: 999; opacity:0; }
+      to   { opacity:1; }
+    }
+    @keyframes champion-glow {
+      0%,100% { box-shadow:0 0 20px #4ade8060, 0 0 40px #4ade8030; }
+      50%     { box-shadow:0 0 35px #4ade8099, 0 0 70px #4ade8050, 0 0 100px #4ade8020; }
+    }
+    @keyframes badge-appear {
+      from { transform:scale(0) rotate(-15deg); opacity:0; }
+      to   { transform:scale(1) rotate(0deg); opacity:1; }
+    }
+    @keyframes shimmer {
+      0%   { background-position:200% center; }
+      100% { background-position:-200% center; }
+    }
+
+    /* Applied classes */
+    .set-done {
+      animation: pop .35s cubic-bezier(.36,.07,.19,.97), glow-pulse 2.5s ease-in-out 0.35s infinite;
+    }
+    .check-done {
+      animation: pop .3s cubic-bezier(.36,.07,.19,.97);
+    }
+    .check-icon-appear {
+      animation: check-pop .25s ease-out forwards;
+    }
+    .card-complete {
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    .champion-card {
+      animation: champion-glow 2.5s ease-in-out infinite;
+    }
+    .badge-pop {
+      animation: badge-appear .4s cubic-bezier(.175,.885,.32,1.275) forwards;
+    }
+    .shimmer-text {
+      background: linear-gradient(90deg, #f5c842 0%, #fff 40%, #f5c842 60%, #ffb347 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -266,12 +325,20 @@ function ByBadge({ by, at }) {
 /* ─── RING ────────────────────────────────────────────────── */
 function Ring({pct,color,size=72,stroke=6}){
   const r=(size-stroke*2)/2,c=2*Math.PI*r;
+  const done=pct===100;
   return(
-    <svg width={size} height={size} style={{transform:"rotate(-90deg)",flexShrink:0}}>
+    <svg width={size} height={size} style={{transform:"rotate(-90deg)",flexShrink:0,filter:done?`drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}88)`:"none",transition:"filter .5s"}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-        strokeDasharray={c} strokeDashoffset={c-(pct/100)*c} strokeLinecap="round"
-        style={{transition:"stroke-dashoffset .5s ease"}}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={color} strokeWidth={stroke}
+        strokeDasharray={c} strokeDashoffset={c-(pct/100)*c}
+        strokeLinecap="round"
+        style={{transition:"stroke-dashoffset .6s cubic-bezier(.4,0,.2,1), stroke .4s"}}/>
+      {done&&<circle cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={color} strokeWidth={stroke+2} opacity={0.25}
+        strokeDasharray={c} strokeDashoffset={0}
+        strokeLinecap="round"
+        style={{animation:"glow-pulse 2s ease-in-out infinite"}}/>}
     </svg>
   );
 }
@@ -542,11 +609,20 @@ function Accordion({title,badge,color,open,onToggle,children}){
 
 function CheckRow({checked,onToggle,label,color,by,at}){
   return(
-    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:14,padding:"13px 18px",cursor:"pointer",background:checked?`${color}08`:"transparent",transition:"background .15s",minHeight:52}}>
-      <div style={{width:26,height:26,borderRadius:7,flexShrink:0,background:checked?color:"transparent",border:`2px solid ${checked?color:T.dim}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-        {checked&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:14,padding:"13px 18px",cursor:"pointer",background:checked?`${color}12`:"transparent",transition:"background .3s",minHeight:52}}>
+      <div
+        className={checked?"check-done":""}
+        style={{
+          width:28,height:28,borderRadius:8,flexShrink:0,
+          background:checked?`radial-gradient(circle at 35% 35%,${color}ff,${color}cc)`:"transparent",
+          border:`2px solid ${checked?color:T.dim}`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          boxShadow:checked?`0 0 8px ${color}aa,0 0 18px ${color}55`:"none",
+          transition:"background .25s,border .25s,box-shadow .3s",
+        }}>
+        {checked&&<span className="check-icon-appear" style={{color:"#fff",fontSize:14,fontWeight:700,lineHeight:1}}>✓</span>}
       </div>
-      <span style={{flex:1,fontSize:14,color:checked?T.sub:T.text,textDecoration:checked?"line-through":"none",lineHeight:1.4}}>{label}</span>
+      <span style={{flex:1,fontSize:14,color:checked?T.sub:T.text,textDecoration:checked?"line-through":"none",lineHeight:1.4,transition:"color .2s"}}>{label}</span>
       {checked&&by&&<ByBadge by={by} at={at}/>}
     </div>
   );
@@ -561,10 +637,25 @@ function ExCard({ex,cfg,data,color,identity,onToggleSet,onUpdateSetReps,onChange
   const doneSets = sets.filter(s=>s.done).length;
 
   return(
-    <div style={{background:allDone?`${color}0c`:T.card,border:`1px solid ${allDone?color+"40":T.border}`,borderRadius:14,overflow:"hidden",transition:"all .2s"}}>
+    <div
+      className={allDone?"card-complete":""}
+      style={{
+        "--gc": color+"66",
+        background:allDone?`linear-gradient(135deg,${color}14 0%,${color}06 100%)`:T.card,
+        border:`1.5px solid ${allDone?color+"80":T.border}`,
+        borderRadius:14,overflow:"hidden",
+        boxShadow:allDone?`0 0 14px ${color}40,inset 0 0 30px ${color}06`:"none",
+        transition:"background .5s,border .5s,box-shadow .5s",
+      }}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(v=>!v)}>
-        <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,background:allDone?color:"rgba(255,255,255,0.1)",border:`2px solid ${allDone?color:T.dim}`,transition:"all .2s"}}/>
+        <div style={{
+          width:12,height:12,borderRadius:"50%",flexShrink:0,
+          background:allDone?`radial-gradient(circle,${color}ff,${color}99)`:T.dim,
+          border:`2px solid ${allDone?color:T.dim}`,
+          boxShadow:allDone?`0 0 6px ${color},0 0 12px ${color}88`:"none",
+          transition:"all .4s",
+        }}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:700,color:allDone?T.sub:T.text,textDecoration:allDone?"line-through":"none"}}>{ex.name}</div>
           <div style={{fontSize:11,color:T.dim,marginTop:2}}>{ex.tip}</div>
@@ -581,16 +672,30 @@ function ExCard({ex,cfg,data,color,identity,onToggleSet,onUpdateSetReps,onChange
       <div style={{padding:"0 14px 16px",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
         {sets.map((s,si)=>(
           <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
-            <button onClick={()=>onToggleSet(si)} style={{
-              width:52,height:52,borderRadius:14,
-              background:s.done?color:"#1a1e2b",border:`2px solid ${s.done?color:T.border2}`,
-              color:s.done?"#fff":T.sub,fontSize:13,fontWeight:700,fontFamily:T.mono,
-              cursor:"pointer",transition:"all .2s",
-            }}>S{si+1}</button>
+            <button
+              onClick={()=>onToggleSet(si)}
+              className={s.done?"set-done":""}
+              style={{
+                "--gc": color+"99",
+                width:52,height:52,borderRadius:14,
+                background:s.done
+                  ? `radial-gradient(circle at 35% 35%, ${color}ff, ${color}cc)`
+                  : "#1a1e2b",
+                border:`2px solid ${s.done?color:T.border2}`,
+                boxShadow:s.done?`0 0 8px ${color}88, 0 0 20px ${color}44`:"none",
+                color:s.done?"#fff":T.sub,
+                fontSize:13,fontWeight:700,fontFamily:T.mono,
+                cursor:"pointer",transition:"background .25s, border .25s, box-shadow .25s",
+              }}>
+              {s.done
+                ? <span className="check-icon-appear" style={{fontSize:18}}>✓</span>
+                : `S${si+1}`
+              }
+            </button>
             {s.done&&s.by&&<ByBadge by={s.by} at={s.at}/>}
             <input value={s.reps||""} onChange={e=>onUpdateSetReps(si,e.target.value)}
               placeholder={cfg.reps} onClick={e=>e.stopPropagation()}
-              style={{width:52,background:"#1a1e2b",border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none"}}/>
+              style={{width:52,background:s.done?`${color}15`:"#1a1e2b",border:`1px solid ${s.done?color+"60":T.border}`,borderRadius:8,color:s.done?color:T.sub,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none",transition:"all .25s"}}/>
           </div>
         ))}
         {/* Weight / Time field */}
@@ -730,11 +835,22 @@ function WorkoutTab({week,setWeek,dayIdx,switchDay,session,completed,upd,markDon
         {DAYS.map((d,i)=>{
           const k=`w${week}_d${i}`,done=completed.some(c=>c.key===k),active=dayIdx===i;
           return(
-            <button key={i} onClick={()=>switchDay(i)} style={{background:active?d.color:T.card,border:`2px solid ${active?d.color:done?d.color+"55":T.border}`,borderRadius:14,padding:"14px 10px",cursor:"pointer",textAlign:"center",transition:"all .25s",position:"relative"}}>
-              {done&&!active&&<span style={{position:"absolute",top:7,right:9,fontSize:10,color:d.color,fontWeight:700}}>✓</span>}
-              <div style={{fontSize:24,marginBottom:5}}>{d.emoji}</div>
-              <div style={{fontSize:13,fontWeight:700,color:active?"#fff":T.sub,fontFamily:T.mono}}>{d.short}</div>
-              <div style={{fontSize:11,color:active?"rgba(255,255,255,.65)":T.dim,marginTop:2}}>{d.label}</div>
+            <button key={i} onClick={()=>switchDay(i)} style={{
+              background:active
+                ? `radial-gradient(ellipse at 40% 30%, ${d.color}dd, ${d.color}99)`
+                : done ? `${d.color}18` : T.card,
+              border:`2px solid ${active?d.color:done?d.color+"70":T.border}`,
+              borderRadius:14,padding:"14px 10px",cursor:"pointer",textAlign:"center",
+              transition:"all .3s cubic-bezier(.4,0,.2,1)",position:"relative",
+              boxShadow: active
+                ? `0 0 18px ${d.color}99, 0 0 36px ${d.color}44`
+                : done ? `0 0 10px ${d.color}50, 0 0 20px ${d.color}25` : "none",
+            }}>
+              {done&&!active&&<span className="badge-pop" style={{position:"absolute",top:7,right:9,fontSize:10,color:d.color,fontWeight:700,textShadow:`0 0 6px ${d.color}`}}>✓</span>}
+              <div style={{fontSize:26,marginBottom:5,filter:active?`drop-shadow(0 0 6px ${d.color}99)`:"none",transition:"filter .3s"}}>{d.emoji}</div>
+              <div style={{fontSize:13,fontWeight:700,color:active?"#fff":done?d.color:T.sub,fontFamily:T.mono,textShadow:active?`0 0 8px rgba(255,255,255,0.4)`:done?`0 0 6px ${d.color}88`:"none"}}>{d.short}</div>
+              <div style={{fontSize:11,color:active?"rgba(255,255,255,.75)":T.dim,marginTop:2}}>{d.label}</div>
+              {done&&<div style={{position:"absolute",inset:0,borderRadius:13,background:`radial-gradient(ellipse at center,${d.color}08,transparent)`,pointerEvents:"none"}}/>}
             </button>
           );
         })}
@@ -834,14 +950,14 @@ function WorkoutTab({week,setWeek,dayIdx,switchDay,session,completed,upd,markDon
           </button>
         </div>
       ):(
-        <div style={{background:"#071610",border:`1px solid ${T.green}35`,borderRadius:14,padding:"22px",textAlign:"center"}}>
-          <div style={{fontSize:36,marginBottom:8}}>🏆</div>
-          <div style={{fontSize:19,fontWeight:700,color:T.green,marginBottom:4}}>Workout Complete!</div>
-          <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+        <div className="champion-card" style={{background:"linear-gradient(135deg,#071610,#0b2016)",border:`1.5px solid ${T.green}60`,borderRadius:16,padding:"28px 22px",textAlign:"center"}}>
+          <div style={{fontSize:44,marginBottom:10,filter:`drop-shadow(0 0 14px ${T.green})`}}>🏆</div>
+          <div className="shimmer-text" style={{fontSize:22,fontWeight:700,marginBottom:6}}>Workout Complete!</div>
+          <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:6,flexWrap:"wrap"}}>
             {session.date&&<span style={{fontSize:12,color:T.sub,fontFamily:T.mono}}>{session.date}</span>}
             {session.loggedBy&&<ByBadge by={session.loggedBy} at={session.completedAt}/>}
           </div>
-          {session.sessionNote&&<div style={{marginTop:12,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 14px",fontSize:13,color:T.sub,textAlign:"left",lineHeight:1.5}}>"{session.sessionNote}"</div>}
+          {session.sessionNote&&<div style={{marginTop:14,background:`${T.green}08`,border:`1px solid ${T.green}25`,borderRadius:10,padding:"12px 14px",fontSize:13,color:T.sub,textAlign:"left",lineHeight:1.6}}>"{session.sessionNote}"</div>}
         </div>
       )}
     </div>
@@ -974,12 +1090,16 @@ function ProgressTab({completed,week,setWeek,setDayIdx,setTab}){
                   const k=`w${w}_d${di}`,rec=completed.find(c=>c.key===k);
                   const logId = rec?.loggedBy ? ID[rec.loggedBy] : null;
                   return(
-                    <div key={di} onClick={()=>{setWeek(w);setDayIdx(di);setTab("workout");}} style={{background:rec?`${d.color}15`:T.card,border:`1px solid ${rec?d.color+"55":T.border}`,borderRadius:10,padding:"8px 6px",textAlign:"center",cursor:"pointer",transition:"all .2s"}}>
+                    <div key={di} onClick={()=>{setWeek(w);setDayIdx(di);setTab("workout");}} style={{
+                      background:rec?`linear-gradient(135deg,${d.color}20,${d.color}08)`:T.card,
+                      border:`1.5px solid ${rec?d.color+"80":T.border}`,
+                      borderRadius:10,padding:"8px 6px",textAlign:"center",cursor:"pointer",
+                      transition:"all .35s",
+                      boxShadow:rec?`0 0 8px ${d.color}50,0 0 18px ${d.color}20`:"none",
+                    }}>
                       <div style={{fontSize:11,color:rec?d.color:T.dim,fontFamily:T.mono,fontWeight:700}}>{d.short}</div>
-                      <div style={{fontSize:16,margin:"3px 0",color:rec?d.color:T.dim}}>{rec?"✓":"○"}</div>
-                      {rec&&logId&&(
-                        <div style={{fontSize:9,color:logId.color,fontFamily:T.mono,fontWeight:700}}>{logId.short}</div>
-                      )}
+                      <div style={{fontSize:18,margin:"3px 0",color:rec?d.color:T.dim,filter:rec?`drop-shadow(0 0 4px ${d.color})`:"none"}}>{rec?"✓":"○"}</div>
+                      {rec&&logId&&<div style={{fontSize:9,color:logId.color,fontFamily:T.mono,fontWeight:700}}>{logId.short}</div>}
                       {rec?.date&&<div style={{fontSize:9,color:T.dim,fontFamily:T.mono}}>{rec.date}</div>}
                     </div>
                   );
