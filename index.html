@@ -362,10 +362,11 @@ function IdentityScreen({onSelect}){
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:T.card,border:`1px solid ${T.border2}`,borderRadius:20,padding:"40px 28px",maxWidth:380,width:"100%",textAlign:"center"}}>
         <div style={{fontSize:48,marginBottom:16}}>⚾</div>
-        <div style={{fontSize:22,fontWeight:700,marginBottom:6}}>{PLAYER.title}</div>
-        <div style={{fontSize:13,color:T.sub,marginBottom:32,lineHeight:1.6}}>
-          Who is using this device?<br/>
-          <span style={{fontSize:11,color:T.dim}}>This is saved on your phone — you only choose once.</span>
+        <div style={{fontSize:22,fontWeight:700,marginBottom:4,color:T.text}}>{PLAYER.title}</div>
+        <div style={{fontSize:11,color:T.blue,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:20}}>{PLAYER.subtitle}</div>
+        <div style={{fontSize:14,color:T.text,marginBottom:6,fontWeight:600}}>Who is using this device?</div>
+        <div style={{fontSize:12,color:T.sub,marginBottom:28,lineHeight:1.6}}>
+          Saved on your phone — you only choose once.
         </div>
         <div style={{display:"flex",gap:14}}>
           {["Daniel","Dad"].map(who=>{
