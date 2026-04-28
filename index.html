@@ -2,19 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Daniel Baseball"/>
   <title>Elite Baseball Athlete Tracker | Daniel Fajardo JR · 14U D1 College Bound</title>
   <meta property="og:type"         content="website"/>
-  <meta property="og:url"          content="https://cashclowns.github.io/daniel-baseball/"/>
+  <meta property="og:url"          content="https://cashclowns.github.io/Daniel-Baseball/"/>
   <meta property="og:title"        content="Elite Baseball Athlete Tracker — Daniel Fajardo JR"/>
   <meta property="og:description"  content="14U · D1 College Bound · 6-Week Strength, Conditioning &amp; Agility Program · Infield"/>
-  <meta property="og:image"        content="https://cashclowns.github.io/daniel-baseball/preview.svg"/>
+  <meta property="og:image"        content="https://cashclowns.github.io/Daniel-Baseball/preview.png"/>
+  <meta property="og:image:type"   content="image/png"/>
+  <meta property="og:image:width"  content="1200"/>
+  <meta property="og:image:height" content="630"/>
   <meta name="twitter:card"        content="summary_large_image"/>
   <meta name="twitter:title"       content="Elite Baseball Athlete Tracker — Daniel Fajardo JR"/>
   <meta name="twitter:description" content="14U · D1 College Bound · 6-Week Strength, Conditioning &amp; Agility Program"/>
-  <meta name="twitter:image"       content="https://cashclowns.github.io/daniel-baseball/preview.svg"/>
+  <meta name="twitter:image"       content="https://cashclowns.github.io/Daniel-Baseball/preview.png"/>
   <meta name="theme-color"         content="#12141a"/>
-  <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#12141a;}</style>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { height:100%; }
+    body {
+      background:#12141a;
+      height:100%;
+      -webkit-text-size-adjust:100%;
+      -webkit-font-smoothing:antialiased;
+      overscroll-behavior-y:none;
+    }
+    /* Prevent iOS zoom on input focus — must be 16px+ */
+    input, textarea, select { font-size:16px !important; }
+    /* Remove tap highlight flash on iOS */
+    * { -webkit-tap-highlight-color:transparent; }
+    /* Smooth native scrolling */
+    .scroll-view { -webkit-overflow-scrolling:touch; overflow-y:auto; }
+    /* Bottom nav safe area */
+    .bottom-nav {
+      position:fixed;
+      bottom:0; left:0; right:0;
+      padding-bottom:env(safe-area-inset-bottom);
+      z-index:50;
+    }
+    /* Main content clears the bottom nav */
+    .main-content {
+      padding-bottom:calc(72px + env(safe-area-inset-bottom));
+    }
+    /* iOS add-to-homescreen banner hint */
+    #root { min-height:100dvh; }
+  </style>
 </head>
 <body>
 <div id="root"></div>
@@ -243,8 +278,9 @@ function Ring({pct,color,size=72,stroke=6}){
 
 const iStyle=(color="")=>({
   background:T.lift, border:`1px solid ${color?color+"30":T.border2}`,
-  borderRadius:8, color:T.text, padding:"10px 12px", fontSize:14,
+  borderRadius:10, color:T.text, padding:"13px 14px", fontSize:16,
   fontFamily:T.sans, width:"100%", boxSizing:"border-box", outline:"none",
+  WebkitAppearance:"none", appearance:"none",
 });
 
 /* ─── APP ─────────────────────────────────────────────────── */
@@ -333,14 +369,15 @@ function App() {
   const idInfo = ID[identity];
 
   return(
-    <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",color:T.text}}>
+    <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100dvh",color:T.text}}>
       <Header week={week} ph={ph} completed={completed} identity={identity} idInfo={idInfo} onSwitch={()=>{localStorage.removeItem("djr_identity");setIdentity(null);}} syncing={syncing}/>
-      <NavBar tab={tab} setTab={setTab} ph={ph}/>
-      <div style={{maxWidth:700,margin:"0 auto",padding:"20px 14px 100px"}}>
+      <div className="main-content" style={{maxWidth:700,margin:"0 auto",padding:"16px 14px 0"}}>
         {tab==="workout"   && <WorkoutTab {...{week,setWeek,dayIdx,switchDay,session,completed,upd,markDone,identity}}/>}
         {tab==="nutrition" && <NutritionTab week={week}/>}
         {tab==="progress"  && <ProgressTab {...{completed,week,setWeek,setDayIdx:switchDay,setTab}}/>}
+        {tab==="pledge"    && <PledgeTab identity={identity}/>}
       </div>
+      <NavBar tab={tab} setTab={setTab} ph={ph}/>
     </div>
   );
 }
@@ -443,22 +480,42 @@ function Header({week,ph,completed,identity,idInfo,onSwitch,syncing}){
   );
 }
 
-/* ─── NAV ─────────────────────────────────────────────────── */
+/* ─── BOTTOM NAV (iOS style) ──────────────────────────────── */
 function NavBar({tab,setTab,ph}){
+  const items=[
+    ["workout","Workout",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M8 3l-2 9 6 3 6-3-2-9"/></svg>
+    ],
+    ["nutrition","Nutrition",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
+    ],
+    ["progress","Progress",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    ],
+    ["pledge","Pledge",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    ],
+  ];
   return(
-    <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,position:"sticky",top:0,zIndex:30}}>
-      <div style={{maxWidth:700,margin:"0 auto",display:"flex"}}>
-        {[["workout","Workout","💪"],["nutrition","Nutrition","🥗"],["progress","Progress","📊"]].map(([id,lbl,icon])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{
-            flex:1,background:"none",border:"none",
-            borderBottom:tab===id?`2px solid ${ph.color}`:"2px solid transparent",
-            padding:"12px 8px",cursor:"pointer",color:tab===id?T.text:T.sub,
-            fontSize:13,fontFamily:T.sans,transition:"all .2s",
-            display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-          }}>
-            <span style={{fontSize:15}}>{icon}</span>{lbl}
-          </button>
-        ))}
+    <div className="bottom-nav" style={{background:"rgba(18,20,26,0.96)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:`1px solid rgba(255,255,255,0.1)`}}>
+      <div style={{display:"flex",maxWidth:700,margin:"0 auto"}}>
+        {items.map(([id,lbl,icon])=>{
+          const active=tab===id;
+          return(
+            <button key={id} onClick={()=>setTab(id)} style={{
+              flex:1,background:"none",border:"none",
+              padding:"10px 4px 8px",cursor:"pointer",
+              display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+              color:active?ph.color:T.dim,
+              transition:"color .2s",
+              minHeight:56,
+            }}>
+              <div style={{transition:"transform .15s",transform:active?"scale(1.1)":"scale(1)"}}>{icon}</div>
+              <span style={{fontSize:10,fontFamily:T.sans,fontWeight:active?700:400,letterSpacing:.2}}>{lbl}</span>
+              {active&&<div style={{width:18,height:2,borderRadius:1,background:ph.color,marginTop:1}}/>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -485,11 +542,11 @@ function Accordion({title,badge,color,open,onToggle,children}){
 
 function CheckRow({checked,onToggle,label,color,by,at}){
   return(
-    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 18px",cursor:"pointer",background:checked?`${color}08`:"transparent",transition:"background .15s"}}>
-      <div style={{width:22,height:22,borderRadius:6,flexShrink:0,background:checked?color:"transparent",border:`2px solid ${checked?color:T.dim}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-        {checked&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}
+    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:14,padding:"13px 18px",cursor:"pointer",background:checked?`${color}08`:"transparent",transition:"background .15s",minHeight:52}}>
+      <div style={{width:26,height:26,borderRadius:7,flexShrink:0,background:checked?color:"transparent",border:`2px solid ${checked?color:T.dim}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+        {checked&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
       </div>
-      <span style={{flex:1,fontSize:13,color:checked?T.sub:T.text,textDecoration:checked?"line-through":"none"}}>{label}</span>
+      <span style={{flex:1,fontSize:14,color:checked?T.sub:T.text,textDecoration:checked?"line-through":"none",lineHeight:1.4}}>{label}</span>
       {checked&&by&&<ByBadge by={by} at={at}/>}
     </div>
   );
@@ -521,30 +578,30 @@ function ExCard({ex,cfg,data,color,identity,onToggleSet,onUpdateSetReps,onChange
       </div>
 
       {/* Set Bubbles — always visible */}
-      <div style={{padding:"0 16px 14px",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <div style={{padding:"0 14px 16px",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
         {sets.map((s,si)=>(
-          <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
             <button onClick={()=>onToggleSet(si)} style={{
-              width:42,height:42,borderRadius:12,
+              width:52,height:52,borderRadius:14,
               background:s.done?color:"#1a1e2b",border:`2px solid ${s.done?color:T.border2}`,
-              color:s.done?"#fff":T.sub,fontSize:12,fontWeight:700,fontFamily:T.mono,
+              color:s.done?"#fff":T.sub,fontSize:13,fontWeight:700,fontFamily:T.mono,
               cursor:"pointer",transition:"all .2s",
             }}>S{si+1}</button>
             {s.done&&s.by&&<ByBadge by={s.by} at={s.at}/>}
             <input value={s.reps||""} onChange={e=>onUpdateSetReps(si,e.target.value)}
               placeholder={cfg.reps} onClick={e=>e.stopPropagation()}
-              style={{width:42,background:"#1a1e2b",border:`1px solid ${T.border}`,borderRadius:6,color:T.sub,padding:"3px 0",fontSize:11,fontFamily:T.mono,textAlign:"center",outline:"none"}}/>
+              style={{width:52,background:"#1a1e2b",border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none"}}/>
           </div>
         ))}
         {/* Weight / Time field */}
         {(ex.wt||ex.timed)&&(
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-            <div style={{width:42,height:42,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,fontSize:18}}>{ex.wt?"🏋️":"⏱️"}</div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+            <div style={{width:52,height:52,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,fontSize:22}}>{ex.wt?"🏋️":"⏱️"}</div>
             {(data.weightBy||data.timeBy)&&<ByBadge by={ex.wt?data.weightBy:data.timeBy} at={ex.wt?data.weightAt:data.timeAt}/>}
             <input value={ex.wt?(data.weight||""):(data.time||"")}
               onChange={e=>onChange(ex.wt?{weight:e.target.value,...stamp(identity)&&{weightBy:identity,weightAt:stamp(identity).at}}:{time:e.target.value,timeBy:identity,timeAt:stamp(identity).at})}
               placeholder={ex.wt?"lbs":"sec"}
-              style={{width:42,background:"#1a1e2b",border:`1px solid ${color}40`,borderRadius:6,color,padding:"3px 0",fontSize:11,fontFamily:T.mono,textAlign:"center",outline:"none"}}/>
+              style={{width:52,background:"#1a1e2b",border:`1px solid ${color}40`,borderRadius:8,color,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none"}}/>
           </div>
         )}
       </div>
@@ -959,6 +1016,208 @@ function ProgressTab({completed,week,setWeek,setDayIdx,setTab}){
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PLEDGE TAB ──────────────────────────────────────────── */
+function PledgeTab({ identity }) {
+  const [pledges,    setPledges]    = useState({ daniel:{}, dad:{} });
+  const [danielSig,  setDanielSig]  = useState("");
+  const [dadSig,     setDadSig]     = useState("");
+  const [danielDate, setDanielDate] = useState("");
+  const [dadDate,    setDadDate]    = useState("");
+  const [saving,     setSaving]     = useState("");
+
+  useEffect(()=>{
+    fbListen(`${ROOT}/pledges`, val => {
+      if(val) setPledges(val);
+    });
+    // Default dates to today
+    const today = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+    setDanielDate(today); setDadDate(today);
+  },[]);
+
+  const signPledge = (who) => {
+    const sig  = who==="daniel" ? danielSig : dadSig;
+    const date = who==="daniel" ? danielDate : dadDate;
+    if(!sig.trim()) return;
+    setSaving(who);
+    const data = { signed:true, signature:sig.trim(), date, signedAt:new Date().toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}) };
+    fbUpd(`${ROOT}/pledges/${who}`, data);
+    setTimeout(()=>setSaving(""),800);
+  };
+
+  const dp = pledges.daniel || {};
+  const pp = pledges.dad    || {};
+
+  const gold   = "#f5c842";
+  const silver = "#a8b5c8";
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{textAlign:"center",padding:"10px 0 28px"}}>
+        <div style={{fontSize:36,marginBottom:10}}>🤝</div>
+        <div style={{fontSize:22,fontWeight:700,letterSpacing:-.3,marginBottom:6}}>Commitment to Excellence</div>
+        <div style={{fontSize:13,color:T.sub,lineHeight:1.7,maxWidth:480,margin:"0 auto"}}>
+          This is more than a training plan. This is a promise — made between a father and his son — to pursue greatness together. Read each pledge, sign your name, and let's get to work.
+        </div>
+      </div>
+
+      {/* ── DANIEL'S PLEDGE ── */}
+      <div style={{background:T.card,border:`1px solid ${gold}30`,borderRadius:18,overflow:"hidden",marginBottom:20}}>
+        {/* Badge */}
+        <div style={{background:`${gold}12`,borderBottom:`1px solid ${gold}25`,padding:"14px 20px",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:42,height:42,borderRadius:12,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:"#fff",flexShrink:0}}>D</div>
+          <div>
+            <div style={{fontSize:16,fontWeight:700,color:T.text}}>The Athlete's Pledge</div>
+            <div style={{fontSize:11,color:gold,fontFamily:T.mono,letterSpacing:1,marginTop:2}}>DANIEL FAJARDO JR · PLAYER</div>
+          </div>
+          {dp.signed && <div style={{marginLeft:"auto",background:`${T.green}15`,border:`1px solid ${T.green}40`,borderRadius:8,padding:"4px 12px",fontSize:11,color:T.green,fontFamily:T.mono,fontWeight:700}}>✓ SIGNED</div>}
+        </div>
+
+        {/* Text */}
+        <div style={{padding:"22px 22px 18px"}}>
+          <p style={{fontSize:14,color:T.sub,lineHeight:1.9,margin:"0 0 14px",fontStyle:"italic",color:T.dim}}>
+            I, Daniel Fajardo JR, as a student-athlete and as a son, make this solemn commitment:
+          </p>
+          {[
+            "I will commit myself fully to this 6-week training program and to the journey that follows. I will show up to every session with maximum effort, complete honesty, and a clear purpose. I will not quit when it gets hard, I will not make excuses, and I will not sabotage the work my coach and I have built together.",
+            "I understand that becoming an elite baseball player demands more than physical strength. I commit to developing my leadership, sharpening my mindset, protecting my body, and growing my character every single day. Discipline, consistency, and mental toughness are skills I will practice just as I practice my craft.",
+            "I will stay true to this plan — in the gym, on the field, and in the choices I make away from both. I will not cut corners. I will trust the process. I will hold myself accountable to a standard that is higher than what is comfortable, because comfortable does not build champions.",
+            "My goal is clear and my vision is set: to become a D1 college baseball athlete and earn a scholarship through excellence in the game I love. I will train every day as if that moment is already on its way — because it is.",
+            "Above all, I commit to becoming the best version of myself — as an athlete, as a son, and as a young man of character and integrity. I am not just building a baseball career. I am building a champion's life.",
+          ].map((para,i)=>(
+            <p key={i} style={{fontSize:13,color:T.sub,lineHeight:1.85,margin:"0 0 14px"}}>{para}</p>
+          ))}
+
+          {/* Signature Area */}
+          {dp.signed ? (
+            <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:10}}>
+                <div>
+                  <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,marginBottom:4}}>PLAYER SIGNATURE</div>
+                  <div style={{fontSize:22,color:gold,fontFamily:"Georgia, serif",fontStyle:"italic",letterSpacing:.5}}>{dp.signature}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,marginBottom:4}}>DATE SIGNED</div>
+                  <div style={{fontSize:13,color:T.sub}}>{dp.date}</div>
+                  <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,marginTop:2}}>{dp.signedAt}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:8}}>
+              <div style={{fontSize:12,color:T.sub,marginBottom:10}}>When you're ready to commit, sign your name below:</div>
+              <div style={{display:"flex",gap:10,flexDirection:"column"}}>
+                <input value={danielSig} onChange={e=>setDanielSig(e.target.value)}
+                  placeholder="Type your full name to sign…"
+                  style={{background:T.lift,border:`1px solid ${gold}40`,borderRadius:10,color:T.text,padding:"14px 16px",fontSize:16,fontFamily:"Georgia, serif",fontStyle:"italic",outline:"none",WebkitAppearance:"none",width:"100%"}}/>
+                <input value={danielDate} onChange={e=>setDanielDate(e.target.value)}
+                  style={{background:T.lift,border:`1px solid ${T.border2}`,borderRadius:10,color:T.sub,padding:"13px 14px",fontSize:16,fontFamily:T.mono,outline:"none",WebkitAppearance:"none",width:"100%"}}/>
+              </div>
+              <button onClick={()=>signPledge("daniel")} disabled={!danielSig.trim()} style={{
+                marginTop:12,width:"100%",background:danielSig.trim()?gold:T.lift,
+                border:`1px solid ${danielSig.trim()?gold:T.border}`,borderRadius:10,
+                padding:"13px",color:danielSig.trim()?"#0d0d0d":T.dim,
+                fontSize:14,fontWeight:700,fontFamily:T.sans,cursor:danielSig.trim()?"pointer":"default",
+                transition:"all .25s",
+              }}>
+                {saving==="daniel" ? "Signing…" : "✍  Sign the Athlete's Pledge"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── DAD'S PLEDGE ── */}
+      <div style={{background:T.card,border:`1px solid ${silver}30`,borderRadius:18,overflow:"hidden",marginBottom:20}}>
+        {/* Badge */}
+        <div style={{background:`${silver}08`,borderBottom:`1px solid ${silver}20`,padding:"14px 20px",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:42,height:42,borderRadius:12,background:T.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>👨</div>
+          <div>
+            <div style={{fontSize:16,fontWeight:700,color:T.text}}>The Coach & Father's Pledge</div>
+            <div style={{fontSize:11,color:silver,fontFamily:T.mono,letterSpacing:1,marginTop:2}}>DAD · COACH · SUPPORTER</div>
+          </div>
+          {pp.signed && <div style={{marginLeft:"auto",background:`${T.green}15`,border:`1px solid ${T.green}40`,borderRadius:8,padding:"4px 12px",fontSize:11,color:T.green,fontFamily:T.mono,fontWeight:700}}>✓ SIGNED</div>}
+        </div>
+
+        {/* Text */}
+        <div style={{padding:"22px 22px 18px"}}>
+          <p style={{fontSize:14,lineHeight:1.9,margin:"0 0 14px",fontStyle:"italic",color:T.dim}}>
+            I, as Daniel's father and coach, make this solemn commitment to my son:
+          </p>
+          {[
+            "I will stand beside Daniel every step of this journey. I will push him when he needs pushing, encourage him when he doubts himself, celebrate his wins, and help him grow through his losses. I will never let him walk this road alone.",
+            "I commit to providing every tool, resource, and opportunity that Daniel needs to develop as an elite baseball athlete. I will invest in his training, his recovery, his nutrition, and his mindset — because I believe in what he is becoming.",
+            "I commit to making this journey one we both remember — not only for the results we achieve, but for the bond we build along the way. This program is not just about baseball. It is about a father and son building something meaningful together, one session at a time.",
+            "My ultimate goal is clear: to give Daniel every possible chance to earn a Division 1 college baseball scholarship and to open doors that lead to a life of excellence far beyond the game. I will coach him with honesty, push him with love, and lead him by example.",
+            "Above all, I pledge to always put Daniel's best interests first — in every decision I make as his coach, his father, and his most devoted supporter. He is not just my athlete. He is my son. And I am honored to walk this road with him.",
+          ].map((para,i)=>(
+            <p key={i} style={{fontSize:13,color:T.sub,lineHeight:1.85,margin:"0 0 14px"}}>{para}</p>
+          ))}
+
+          {/* Signature Area */}
+          {pp.signed ? (
+            <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:10}}>
+                <div>
+                  <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,marginBottom:4}}>COACH & FATHER SIGNATURE</div>
+                  <div style={{fontSize:22,color:silver,fontFamily:"Georgia, serif",fontStyle:"italic",letterSpacing:.5}}>{pp.signature}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,marginBottom:4}}>DATE SIGNED</div>
+                  <div style={{fontSize:13,color:T.sub}}>{pp.date}</div>
+                  <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,marginTop:2}}>{pp.signedAt}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:8}}>
+              <div style={{fontSize:12,color:T.sub,marginBottom:10}}>When you're ready to commit, sign your name below:</div>
+              <div style={{display:"flex",gap:10,flexDirection:"column"}}>
+                <input value={dadSig} onChange={e=>setDadSig(e.target.value)}
+                  placeholder="Type your full name to sign…"
+                  style={{background:T.lift,border:`1px solid ${silver}40`,borderRadius:10,color:T.text,padding:"14px 16px",fontSize:16,fontFamily:"Georgia, serif",fontStyle:"italic",outline:"none",WebkitAppearance:"none",width:"100%"}}/>
+                <input value={dadDate} onChange={e=>setDadDate(e.target.value)}
+                  style={{background:T.lift,border:`1px solid ${T.border2}`,borderRadius:10,color:T.sub,padding:"13px 14px",fontSize:16,fontFamily:T.mono,outline:"none",WebkitAppearance:"none",width:"100%"}}/>
+              </div>
+              <button onClick={()=>signPledge("dad")} disabled={!dadSig.trim()} style={{
+                marginTop:12,width:"100%",background:dadSig.trim()?silver:T.lift,
+                border:`1px solid ${dadSig.trim()?silver:T.border}`,borderRadius:10,
+                padding:"13px",color:dadSig.trim()?"#0d0d0d":T.dim,
+                fontSize:14,fontWeight:700,fontFamily:T.sans,cursor:dadSig.trim()?"pointer":"default",
+                transition:"all .25s",
+              }}>
+                {saving==="dad" ? "Signing…" : "✍  Sign the Father's Pledge"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Both Signed Banner */}
+      {dp.signed && pp.signed && (
+        <div style={{background:"#071610",border:`1px solid ${T.green}35`,borderRadius:16,padding:"24px 20px",textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:10}}>🏆</div>
+          <div style={{fontSize:18,fontWeight:700,color:T.green,marginBottom:6}}>Both Pledges Signed</div>
+          <div style={{fontSize:13,color:T.sub,lineHeight:1.7,maxWidth:420,margin:"0 auto"}}>
+            The commitment is made. Father and son, coach and athlete — united by a shared goal and a promise kept. Now go earn it. ⚾
+          </div>
+          <div style={{display:"flex",justifyContent:"center",gap:24,marginTop:18}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:13,fontStyle:"italic",color:gold,fontFamily:"Georgia, serif"}}>{dp.signature}</div>
+              <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,marginTop:3}}>Daniel · {dp.date}</div>
+            </div>
+            <div style={{width:1,background:T.border}}/>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:13,fontStyle:"italic",color:silver,fontFamily:"Georgia, serif"}}>{pp.signature}</div>
+              <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,marginTop:3}}>Dad · {pp.date}</div>
+            </div>
+          </div>
         </div>
       )}
     </div>
