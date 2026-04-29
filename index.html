@@ -49,7 +49,7 @@
       z-index:50;
     }
     .main-content {
-      padding-bottom:calc(72px + env(safe-area-inset-bottom));
+      padding-bottom:calc(90px + env(safe-area-inset-bottom));
     }
     #root { min-height:100dvh; }
 
@@ -452,6 +452,7 @@ function App() {
         {tab==="nutrition" && <NutritionTab week={week}/>}
         {tab==="progress"  && <ProgressTab {...{completed,week,setWeek,setDayIdx:switchDay,setTab}}/>}
         {tab==="pledge"    && <PledgeTab identity={identity}/>}
+        {tab==="calendar"  && <CalendarTab identity={identity}/>}
       </div>
       <NavBar tab={tab} setTab={setTab} ph={ph}/>
     </div>
@@ -570,6 +571,9 @@ function NavBar({tab,setTab,ph}){
     ],
     ["pledge","Pledge",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    ],
+    ["calendar","Calendar",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     ],
   ];
   return(
@@ -1346,6 +1350,334 @@ function PledgeTab({ identity }) {
               <div style={{fontSize:13,fontStyle:"italic",color:silver,fontFamily:"Georgia, serif"}}>{pp.signature}</div>
               <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,marginTop:3}}>Dad · {pp.date}</div>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── CALENDAR TAB ────────────────────────────────────────── */
+const EVENT_TYPES = [
+  { id:"tryout",  label:"Tryout",       color:"#ff5c5c", icon:"⚾" },
+  { id:"practice",label:"Practice",     color:"#5aadff", icon:"🏋️" },
+  { id:"game",    label:"Game",          color:"#00d9a3", icon:"🏆" },
+  { id:"showcase",label:"Showcase",     color:"#ffb84d", icon:"🌟" },
+  { id:"other",   label:"Other",         color:"#b197fc", icon:"📌" },
+];
+const evColor = (type) => EVENT_TYPES.find(t=>t.id===type)?.color || "#8890aa";
+const evIcon  = (type) => EVENT_TYPES.find(t=>t.id===type)?.icon  || "📌";
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function CalendarTab({ identity }) {
+  const now = new Date();
+  const [year,  setYear]   = useState(now.getFullYear());
+  const [month, setMonth]  = useState(now.getMonth());
+  const [events, setEvents]= useState({});
+  const [modal,  setModal] = useState(null); // {date, event?} — null=closed
+  const [form,   setForm]  = useState({});
+  const [delConfirm, setDelConfirm] = useState(null);
+
+  useEffect(()=>{
+    fbListen(`${ROOT}/calendar`, val => setEvents(val||{}));
+  },[]);
+
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const firstDay    = new Date(year, month, 1).getDay();
+  const todayStr    = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+  const dateKey = (y,m,d) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const eventsForDate = (dk) => events[dk] ? Object.values(events[dk]) : [];
+
+  const prevMonth = () => { if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
+  const nextMonth = () => { if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
+
+  const openAdd = (dk) => {
+    setForm({ date:dk, type:"tryout", team:"", time:"", location:"", notes:"" });
+    setModal({ mode:"add", date:dk });
+  };
+  const openEdit = (dk, ev) => {
+    setForm({ ...ev, date:dk });
+    setModal({ mode:"edit", date:dk, eventId:ev.id });
+  };
+
+  const saveEvent = () => {
+    if(!form.team?.trim() && !form.notes?.trim()) return;
+    const id  = modal.mode==="edit" ? modal.eventId : `ev_${Date.now()}`;
+    const s   = { id, ...form,
+      by: identity,
+      at: new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}),
+    };
+    fbUpd(`${ROOT}/calendar/${form.date}/${id}`, s);
+    setModal(null);
+  };
+
+  const deleteEvent = (dk, id) => {
+    window.__fbSet(window.__fbRef(window.__fbDb, `${ROOT}/calendar/${dk}/${id}`), null);
+    setDelConfirm(null); setModal(null);
+  };
+
+  // Get all upcoming events sorted
+  const upcoming = Object.entries(events)
+    .flatMap(([dk, evs]) => Object.values(evs).map(ev=>({...ev,dateKey:dk})))
+    .filter(ev => ev.dateKey >= todayStr)
+    .sort((a,b) => a.dateKey.localeCompare(b.dateKey))
+    .slice(0,8);
+
+  const ph = PHASE[0]; // use blue as default
+
+  return (
+    <div>
+      {/* Month Nav */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+        <button onClick={prevMonth} style={{width:40,height:40,borderRadius:10,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:20,fontWeight:700,letterSpacing:-.3}}>{MONTHS[month]}</div>
+          <div style={{fontSize:12,color:T.sub,fontFamily:T.mono}}>{year}</div>
+        </div>
+        <button onClick={nextMonth} style={{width:40,height:40,borderRadius:10,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+        {DAYS_SHORT.map(d=>(
+          <div key={d} style={{textAlign:"center",fontSize:10,color:T.dim,fontFamily:T.mono,fontWeight:700,padding:"4px 0"}}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar Grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:20}}>
+        {/* Empty cells before first day */}
+        {Array.from({length:firstDay}).map((_,i)=>(
+          <div key={`e${i}`} style={{minHeight:56,borderRadius:10,background:"transparent"}}/>
+        ))}
+        {/* Day cells */}
+        {Array.from({length:daysInMonth}).map((_,i)=>{
+          const day = i+1;
+          const dk  = dateKey(year,month,day);
+          const dayEvs = eventsForDate(dk);
+          const isToday = dk===todayStr;
+          const hasEvs  = dayEvs.length>0;
+
+          return (
+            <div key={day} onClick={()=>openAdd(dk)} style={{
+              minHeight:56,borderRadius:10,
+              background: isToday ? `${T.blue}18` : hasEvs ? "transparent" : T.card,
+              border: isToday
+                ? `1.5px solid ${T.blue}80`
+                : hasEvs ? `1.5px solid transparent` : `1px solid ${T.border}`,
+              cursor:"pointer",padding:"5px 4px",
+              position:"relative",overflow:"hidden",
+              transition:"all .2s",
+              boxShadow: hasEvs ? dayEvs.map(ev=>`0 0 8px ${evColor(ev.type)}40`).join(",") : "none",
+            }}>
+              {/* Day number */}
+              <div style={{
+                fontSize:13,fontWeight:isToday?700:500,
+                color:isToday?T.blue:T.text,
+                textAlign:"center",marginBottom:3,
+                textShadow:isToday?`0 0 8px ${T.blue}`:"none",
+              }}>{day}</div>
+
+              {/* Event dots */}
+              {dayEvs.slice(0,3).map((ev,ei)=>(
+                <div key={ei} onClick={e=>{e.stopPropagation();openEdit(dk,ev);}} style={{
+                  fontSize:9,fontWeight:700,fontFamily:T.mono,
+                  color:evColor(ev.type),
+                  background:`${evColor(ev.type)}18`,
+                  border:`1px solid ${evColor(ev.type)}50`,
+                  borderRadius:4,padding:"1px 3px",
+                  marginBottom:2,
+                  overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
+                  boxShadow:`0 0 5px ${evColor(ev.type)}50`,
+                  lineHeight:1.4,
+                }}>
+                  {evIcon(ev.type)} {ev.team||ev.notes?.slice(0,8)||"Event"}
+                </div>
+              ))}
+              {dayEvs.length>3&&<div style={{fontSize:8,color:T.dim,textAlign:"center"}}>+{dayEvs.length-3}</div>}
+
+              {/* Glow overlay for event days */}
+              {hasEvs&&<div style={{
+                position:"absolute",inset:0,borderRadius:10,
+                background:`radial-gradient(ellipse at 50% 100%, ${evColor(dayEvs[0].type)}18, transparent 70%)`,
+                pointerEvents:"none",
+                border:`1.5px solid ${evColor(dayEvs[0].type)}60`,
+              }}/>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Event Type Legend */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+        {EVENT_TYPES.map(et=>(
+          <div key={et.id} style={{display:"flex",alignItems:"center",gap:5,background:`${et.color}12`,border:`1px solid ${et.color}35`,borderRadius:8,padding:"4px 10px"}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:et.color,boxShadow:`0 0 5px ${et.color}`}}/>
+            <span style={{fontSize:11,color:et.color,fontFamily:T.mono}}>{et.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Upcoming Events */}
+      {upcoming.length>0&&(
+        <div style={{marginBottom:20}}>
+          <Label text="Upcoming Events"/>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {upcoming.map((ev,i)=>{
+              const [y2,m2,d2] = ev.dateKey.split("-");
+              const dateLabel = new Date(Number(y2),Number(m2)-1,Number(d2)).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+              const daysAway = Math.ceil((new Date(ev.dateKey)-new Date(todayStr))/(1000*60*60*24));
+              const col = evColor(ev.type);
+              return(
+                <div key={i} onClick={()=>openEdit(ev.dateKey,ev)} style={{
+                  background:`linear-gradient(135deg,${col}14,${col}06)`,
+                  border:`1.5px solid ${col}60`,
+                  borderRadius:14,padding:"14px 16px",cursor:"pointer",
+                  boxShadow:`0 0 10px ${col}30, 0 0 20px ${col}15`,
+                  transition:"all .2s",
+                }}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                    <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                      <div style={{width:44,height:44,borderRadius:12,background:`${col}20`,border:`1px solid ${col}50`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,boxShadow:`0 0 8px ${col}40`}}>
+                        {evIcon(ev.type)}
+                      </div>
+                      <div>
+                        <div style={{fontSize:15,fontWeight:700,color:T.text}}>{ev.team||"Event"}</div>
+                        <div style={{fontSize:12,color:col,fontFamily:T.mono,marginTop:2}}>{dateLabel}{ev.time&&` · ${ev.time}`}</div>
+                        {ev.location&&<div style={{fontSize:11,color:T.sub,marginTop:2}}>📍 {ev.location}</div>}
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{
+                        background:`${col}20`,border:`1px solid ${col}50`,
+                        borderRadius:8,padding:"3px 10px",
+                        fontSize:11,fontWeight:700,color:col,fontFamily:T.mono,
+                        boxShadow:`0 0 6px ${col}40`,
+                      }}>
+                        {daysAway===0?"TODAY":daysAway===1?"TOMORROW":`${daysAway}d`}
+                      </div>
+                      {ev.by&&<div style={{marginTop:4}}><ByBadge by={ev.by} at={ev.at}/></div>}
+                    </div>
+                  </div>
+                  {ev.notes&&<div style={{marginTop:10,fontSize:12,color:T.sub,lineHeight:1.5,borderTop:`1px solid ${col}20`,paddingTop:8}}>
+                    {ev.notes}
+                  </div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {upcoming.length===0&&(
+        <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"36px 20px",textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:36,marginBottom:10}}>📅</div>
+          <div style={{fontSize:15,color:T.sub}}>No upcoming events</div>
+          <div style={{fontSize:12,color:T.dim,marginTop:5}}>Tap any day on the calendar to add a tryout, game, or practice</div>
+        </div>
+      )}
+
+      {/* ── ADD / EDIT MODAL ── */}
+      {modal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 0 0 0"}} onClick={()=>setModal(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:"#1a1d27",borderRadius:"20px 20px 0 0",
+            border:`1px solid ${T.border2}`,borderBottom:"none",
+            width:"100%",maxWidth:700,
+            padding:"20px 18px",
+            paddingBottom:`calc(20px + env(safe-area-inset-bottom))`,
+            maxHeight:"85vh",overflowY:"auto",
+          }}>
+            {/* Handle */}
+            <div style={{width:36,height:4,borderRadius:2,background:T.dim,margin:"0 auto 20px"}}/>
+
+            <div style={{fontSize:17,fontWeight:700,marginBottom:16}}>
+              {modal.mode==="edit" ? "Edit Event" : `Add Event — ${modal.date}`}
+            </div>
+
+            {/* Event Type */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:12,color:T.sub,marginBottom:8,fontWeight:600}}>Event Type</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                {EVENT_TYPES.map(et=>(
+                  <button key={et.id} onClick={()=>setForm(f=>({...f,type:et.id}))} style={{
+                    padding:"10px 6px",borderRadius:10,
+                    background:form.type===et.id?`${et.color}25`:T.lift,
+                    border:`1.5px solid ${form.type===et.id?et.color:T.border}`,
+                    color:form.type===et.id?et.color:T.sub,
+                    fontSize:12,fontFamily:T.sans,cursor:"pointer",
+                    boxShadow:form.type===et.id?`0 0 8px ${et.color}50`:"none",
+                    transition:"all .2s",
+                  }}>
+                    <div style={{fontSize:18,marginBottom:3}}>{et.icon}</div>
+                    {et.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Team / Event Name */}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Team / Event Name</div>
+              <input value={form.team||""} onChange={e=>setForm(f=>({...f,team:e.target.value}))}
+                placeholder="e.g. Houston Banditos, Perfect Game Showcase…"
+                style={{...iStyle(evColor(form.type||"tryout"))}}/>
+            </div>
+
+            {/* Time + Location row */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Time</div>
+                <input value={form.time||""} onChange={e=>setForm(f=>({...f,time:e.target.value}))}
+                  placeholder="e.g. 9:00 AM"
+                  style={{...iStyle()}}/>
+              </div>
+              <div>
+                <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Location</div>
+                <input value={form.location||""} onChange={e=>setForm(f=>({...f,location:e.target.value}))}
+                  placeholder="Field / City"
+                  style={{...iStyle()}}/>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Notes</div>
+              <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
+                placeholder="Bring gear, contact info, what to wear, directions…"
+                rows={3} style={{...iStyle(),resize:"none"}}/>
+            </div>
+
+            {/* Buttons */}
+            <button onClick={saveEvent} style={{
+              width:"100%",background:evColor(form.type||"tryout"),border:"none",
+              borderRadius:14,padding:"16px",color:"#fff",fontSize:15,fontWeight:700,
+              fontFamily:T.sans,cursor:"pointer",marginBottom:10,
+              boxShadow:`0 0 16px ${evColor(form.type||"tryout")}60`,
+              transition:"all .2s",
+            }}>
+              {modal.mode==="edit" ? "Save Changes" : "Add to Calendar"} ✓
+            </button>
+
+            {modal.mode==="edit"&&(
+              delConfirm ? (
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>deleteEvent(modal.date,modal.eventId)} style={{flex:1,background:"#3a0a0a",border:`1px solid ${T.red}`,borderRadius:12,padding:"13px",color:T.red,fontSize:14,fontWeight:700,fontFamily:T.sans,cursor:"pointer"}}>
+                    Yes, Delete
+                  </button>
+                  <button onClick={()=>setDelConfirm(null)} style={{flex:1,background:T.lift,border:`1px solid ${T.border}`,borderRadius:12,padding:"13px",color:T.sub,fontSize:14,fontFamily:T.sans,cursor:"pointer"}}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button onClick={()=>setDelConfirm(true)} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",color:T.dim,fontSize:13,fontFamily:T.sans,cursor:"pointer"}}>
+                  Delete Event
+                </button>
+              )
+            )}
           </div>
         </div>
       )}
