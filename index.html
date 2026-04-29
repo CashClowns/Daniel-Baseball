@@ -1477,83 +1477,89 @@ function CalendarTab({ identity }) {
       </div>
 
       {/* Calendar Grid */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:20}}>
         {Array.from({length:firstDay}).map((_,i)=>(
-          <div key={`e${i}`} style={{minHeight:72,borderRadius:10,background:"transparent"}}/>
+          <div key={`e${i}`} style={{aspectRatio:"1",borderRadius:10,background:"transparent"}}/>
         ))}
         {Array.from({length:daysInMonth}).map((_,i)=>{
-          const day    = i+1;
-          const dk     = dateKey(year,month,day);
-          const dayEvs = eventsForDate(dk);
+          const day     = i+1;
+          const dk      = dateKey(year,month,day);
+          const dayEvs  = eventsForDate(dk);
           const isToday = dk===todayStr;
           const hasEvs  = dayEvs.length>0;
-          const dow     = (firstDay + i) % 7; // 0=Sun
 
           return (
             <div key={day} onClick={()=>openAdd(dk)} style={{
-              minHeight:72,borderRadius:10,
+              aspectRatio:"1",borderRadius:10,
               background: isToday?`${T.blue}18`:T.card,
-              border: isToday?`1.5px solid ${T.blue}80`:`1px solid ${T.border}`,
-              cursor:"pointer",padding:"5px 4px 4px",
-              position:"relative",overflow:"visible",
-              transition:"all .2s",
-              boxShadow: hasEvs?dayEvs.map(ev=>`0 0 6px ${evColor(ev.type)}35`).join(","):"none",
+              border: isToday?`2px solid ${T.blue}90`:`1px solid ${T.border}`,
+              cursor:"pointer",
+              padding:"5px 3px 4px",
+              position:"relative",overflow:"hidden",
+              transition:"all .25s",
+              display:"flex",flexDirection:"column",alignItems:"stretch",
+              boxShadow: hasEvs
+                ? `0 0 10px ${evColor(dayEvs[0].type)}50, inset 0 0 20px ${evColor(dayEvs[0].type)}08`
+                : "none",
             }}>
+              {/* Day number */}
               <div style={{
-                fontSize:13,fontWeight:isToday?700:500,
-                color:isToday?T.blue:T.text,
-                textAlign:"center",marginBottom:3,
-                textShadow:isToday?`0 0 8px ${T.blue}`:"none",
+                fontSize:12,fontWeight:isToday?700:400,
+                color:isToday?T.blue:T.sub,
+                textAlign:"center",marginBottom:2,lineHeight:1,
+                textShadow:isToday?`0 0 10px ${T.blue}`:"none",
               }}>{day}</div>
 
-              {/* Event bars */}
-              {dayEvs.slice(0,3).map((ev,ei)=>{
-                const pos   = spanPos(ev,dk);
-                const col   = evColor(ev.type);
-                const multi = ev.startDate!==ev.endDate;
-                const isFirstOfWeek = dow===0;
-                const isLastOfWeek  = dow===6;
-                const isFirstDay    = pos==="start"||pos==="single";
-                const isLastDay     = pos==="end"||pos==="single";
+              {/* Event pills — clean, self-contained, no overflow tricks */}
+              <div style={{display:"flex",flexDirection:"column",gap:2,flex:1,overflow:"hidden"}}>
+                {dayEvs.slice(0,2).map((ev,ei)=>{
+                  const col  = evColor(ev.type);
+                  const pos  = spanPos(ev,dk);
+                  const isStart  = pos==="start"||pos==="single";
+                  const isEnd    = pos==="end"||pos==="single";
+                  const isMiddle = pos==="middle";
 
-                // For spanning bars, remove border-radius on connected sides
-                const rTL = (isFirstDay||isFirstOfWeek) ? 5 : 0;
-                const rBL = (isFirstDay||isFirstOfWeek) ? 5 : 0;
-                const rTR = (isLastDay||isLastOfWeek)   ? 5 : 0;
-                const rBR = (isLastDay||isLastOfWeek)   ? 5 : 0;
-
-                return (
-                  <div key={ei}
-                    onClick={e=>{e.stopPropagation();openEdit(ev);}}
-                    style={{
-                      fontSize:9,fontWeight:700,fontFamily:T.mono,
-                      color: multi&&pos!=="single" ? col : col,
-                      background: multi&&pos!=="single"
-                        ? `${col}28`
-                        : `${col}20`,
-                      border:`1px solid ${col}${multi&&pos!=="single"?"55":"50"}`,
-                      // Negative margins to stretch spanning bars edge-to-edge
-                      marginLeft: (!isFirstDay&&!isFirstOfWeek) ? -4 : 0,
-                      marginRight:(!isLastDay &&!isLastOfWeek)  ? -4 : 0,
-                      borderLeftWidth:  (!isFirstDay&&!isFirstOfWeek) ? 0 : 1,
-                      borderRightWidth: (!isLastDay &&!isLastOfWeek)  ? 0 : 1,
-                      borderRadius:`${rTL}px ${rTR}px ${rBR}px ${rBL}px`,
-                      padding: multi&&pos!=="single" ? "2px 4px" : "1px 3px",
-                      marginBottom:2,
-                      overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
-                      boxShadow:`0 0 6px ${col}50`,
-                      lineHeight:1.4,
-                      cursor:"pointer",
-                    }}>
-                    {/* Only show label on start or week-start */}
-                    {(pos==="start"||pos==="single"||isFirstOfWeek)
-                      ? `${evIcon(ev.type)} ${ev.team||"Event"}`
-                      : pos==="end" ? "◀" : "·"
-                    }
+                  return (
+                    <div key={ei}
+                      onClick={e=>{e.stopPropagation();openEdit(ev);}}
+                      style={{
+                        background:`${col}25`,
+                        border:`1px solid ${col}60`,
+                        borderRadius: isMiddle ? 2
+                          : isStart&&!isEnd ? "4px 2px 2px 4px"
+                          : !isStart&&isEnd  ? "2px 4px 4px 2px"
+                          : 4,
+                        padding:"1px 3px",
+                        fontSize:8,fontWeight:700,fontFamily:T.mono,color:col,
+                        overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
+                        boxShadow:`0 0 5px ${col}60`,
+                        lineHeight:1.5,
+                        cursor:"pointer",
+                        letterSpacing:.2,
+                      }}>
+                      {isStart||pos==="single"
+                        ? `${evIcon(ev.type)} ${ev.team||"Event"}`
+                        : isEnd ? `◀ ${ev.team||""}`.trim()
+                        : "▶ ▶"
+                      }
+                    </div>
+                  );
+                })}
+                {dayEvs.length>2&&(
+                  <div style={{fontSize:8,color:T.dim,textAlign:"center",lineHeight:1.4}}>
+                    +{dayEvs.length-2}
                   </div>
-                );
-              })}
-              {dayEvs.length>3&&<div style={{fontSize:8,color:T.dim,textAlign:"center"}}>+{dayEvs.length-3}</div>}
+                )}
+              </div>
+
+              {/* Glow overlay */}
+              {hasEvs&&(
+                <div style={{
+                  position:"absolute",inset:0,borderRadius:10,pointerEvents:"none",
+                  background:`radial-gradient(ellipse at 50% 100%,${evColor(dayEvs[0].type)}20,transparent 75%)`,
+                  border:`1.5px solid ${evColor(dayEvs[0].type)}55`,
+                }}/>
+              )}
             </div>
           );
         })}
