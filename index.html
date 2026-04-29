@@ -1393,55 +1393,80 @@ function CalendarTab({ identity }) {
   const todayStr    = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
 
   const dateKey = (y,m,d) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const eventsForDate = (dk) => events[dk] ? Object.values(events[dk]) : [];
+
+  // Flatten all events into a list with start/end
+  const allEvents = Object.entries(events)
+    .flatMap(([dk,evs])=>Object.values(evs).map(ev=>({
+      ...ev,
+      startDate: ev.startDate||dk,
+      endDate:   ev.endDate||ev.startDate||dk,
+      dateKey:   dk,
+    })));
+
+  // Get events active on a given day (including multi-day spans)
+  const eventsForDate = (dk) => allEvents.filter(ev=>dk>=ev.startDate && dk<=ev.endDate);
+
+  // Position of day in multi-day span: "start"|"middle"|"end"|"single"
+  const spanPos = (ev,dk) => {
+    const isStart = dk===ev.startDate;
+    const isEnd   = dk===ev.endDate;
+    if(isStart&&isEnd) return "single";
+    if(isStart)        return "start";
+    if(isEnd)          return "end";
+    return "middle";
+  };
 
   const prevMonth = () => { if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
   const nextMonth = () => { if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
 
   const openAdd = (dk) => {
-    setForm({ date:dk, type:"tryout", team:"", time:"", location:"", notes:"" });
+    setForm({ startDate:dk, endDate:dk, type:"tryout", team:"", time:"", location:"", notes:"" });
     setModal({ mode:"add", date:dk });
   };
-  const openEdit = (dk, ev) => {
-    setForm({ ...ev, date:dk });
-    setModal({ mode:"edit", date:dk, eventId:ev.id });
+  const openEdit = (ev) => {
+    setForm({ ...ev });
+    setModal({ mode:"edit", date:ev.startDate, eventId:ev.id });
   };
 
   const saveEvent = () => {
     if(!form.team?.trim() && !form.notes?.trim()) return;
     const id  = modal.mode==="edit" ? modal.eventId : `ev_${Date.now()}`;
-    const s   = { id, ...form,
+    const start = form.startDate||modal.date;
+    const end   = form.endDate && form.endDate>=start ? form.endDate : start;
+    const s = { id, ...form, startDate:start, endDate:end, dateKey:start,
       by: identity,
       at: new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}),
     };
-    fbUpd(`${ROOT}/calendar/${form.date}/${id}`, s);
+    // If editing, remove old entry first then save at new startDate
+    if(modal.mode==="edit") {
+      window.__fbSet(window.__fbRef(window.__fbDb,`${ROOT}/calendar/${modal.date}/${id}`), null);
+    }
+    fbUpd(`${ROOT}/calendar/${start}/${id}`, s);
     setModal(null);
   };
 
-  const deleteEvent = (dk, id) => {
-    window.__fbSet(window.__fbRef(window.__fbDb, `${ROOT}/calendar/${dk}/${id}`), null);
+  const deleteEvent = (ev) => {
+    window.__fbSet(window.__fbRef(window.__fbDb,`${ROOT}/calendar/${ev.startDate}/${ev.id}`), null);
     setDelConfirm(null); setModal(null);
   };
 
-  // Get all upcoming events sorted
-  const upcoming = Object.entries(events)
-    .flatMap(([dk, evs]) => Object.values(evs).map(ev=>({...ev,dateKey:dk})))
-    .filter(ev => ev.dateKey >= todayStr)
-    .sort((a,b) => a.dateKey.localeCompare(b.dateKey))
+  // Upcoming: deduplicate by id, only show start date once, sorted
+  const upcoming = allEvents
+    .filter((ev,i,arr)=>arr.findIndex(e=>e.id===ev.id)===i)
+    .filter(ev=>ev.endDate>=todayStr)
+    .sort((a,b)=>a.startDate.localeCompare(b.startDate))
     .slice(0,8);
-
-  const ph = PHASE[0]; // use blue as default
 
   return (
     <div>
       {/* Month Nav */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
-        <button onClick={prevMonth} style={{width:40,height:40,borderRadius:10,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <button onClick={prevMonth} style={{width:44,height:44,borderRadius:12,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:20,fontWeight:700,letterSpacing:-.3}}>{MONTHS[month]}</div>
           <div style={{fontSize:12,color:T.sub,fontFamily:T.mono}}>{year}</div>
         </div>
-        <button onClick={nextMonth} style={{width:40,height:40,borderRadius:10,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+        <button onClick={nextMonth} style={{width:44,height:44,borderRadius:12,background:T.card,border:`1px solid ${T.border}`,color:T.text,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
       </div>
 
       {/* Day headers */}
@@ -1453,31 +1478,27 @@ function CalendarTab({ identity }) {
 
       {/* Calendar Grid */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:20}}>
-        {/* Empty cells before first day */}
         {Array.from({length:firstDay}).map((_,i)=>(
-          <div key={`e${i}`} style={{minHeight:68,borderRadius:10,background:"transparent"}}/>
+          <div key={`e${i}`} style={{minHeight:72,borderRadius:10,background:"transparent"}}/>
         ))}
-        {/* Day cells */}
         {Array.from({length:daysInMonth}).map((_,i)=>{
-          const day = i+1;
-          const dk  = dateKey(year,month,day);
+          const day    = i+1;
+          const dk     = dateKey(year,month,day);
           const dayEvs = eventsForDate(dk);
           const isToday = dk===todayStr;
           const hasEvs  = dayEvs.length>0;
+          const dow     = (firstDay + i) % 7; // 0=Sun
 
           return (
             <div key={day} onClick={()=>openAdd(dk)} style={{
-              minHeight:68,borderRadius:10,
-              background: isToday ? `${T.blue}18` : hasEvs ? "transparent" : T.card,
-              border: isToday
-                ? `1.5px solid ${T.blue}80`
-                : hasEvs ? `1.5px solid transparent` : `1px solid ${T.border}`,
-              cursor:"pointer",padding:"5px 4px",
-              position:"relative",overflow:"hidden",
+              minHeight:72,borderRadius:10,
+              background: isToday?`${T.blue}18`:T.card,
+              border: isToday?`1.5px solid ${T.blue}80`:`1px solid ${T.border}`,
+              cursor:"pointer",padding:"5px 4px 4px",
+              position:"relative",overflow:"visible",
               transition:"all .2s",
-              boxShadow: hasEvs ? dayEvs.map(ev=>`0 0 8px ${evColor(ev.type)}40`).join(",") : "none",
+              boxShadow: hasEvs?dayEvs.map(ev=>`0 0 6px ${evColor(ev.type)}35`).join(","):"none",
             }}>
-              {/* Day number */}
               <div style={{
                 fontSize:13,fontWeight:isToday?700:500,
                 color:isToday?T.blue:T.text,
@@ -1485,37 +1506,60 @@ function CalendarTab({ identity }) {
                 textShadow:isToday?`0 0 8px ${T.blue}`:"none",
               }}>{day}</div>
 
-              {/* Event dots */}
-              {dayEvs.slice(0,3).map((ev,ei)=>(
-                <div key={ei} onClick={e=>{e.stopPropagation();openEdit(dk,ev);}} style={{
-                  fontSize:9,fontWeight:700,fontFamily:T.mono,
-                  color:evColor(ev.type),
-                  background:`${evColor(ev.type)}18`,
-                  border:`1px solid ${evColor(ev.type)}50`,
-                  borderRadius:4,padding:"1px 3px",
-                  marginBottom:2,
-                  overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
-                  boxShadow:`0 0 5px ${evColor(ev.type)}50`,
-                  lineHeight:1.4,
-                }}>
-                  {evIcon(ev.type)} {ev.team||ev.notes?.slice(0,8)||"Event"}
-                </div>
-              ))}
-              {dayEvs.length>3&&<div style={{fontSize:8,color:T.dim,textAlign:"center"}}>+{dayEvs.length-3}</div>}
+              {/* Event bars */}
+              {dayEvs.slice(0,3).map((ev,ei)=>{
+                const pos   = spanPos(ev,dk);
+                const col   = evColor(ev.type);
+                const multi = ev.startDate!==ev.endDate;
+                const isFirstOfWeek = dow===0;
+                const isLastOfWeek  = dow===6;
+                const isFirstDay    = pos==="start"||pos==="single";
+                const isLastDay     = pos==="end"||pos==="single";
 
-              {/* Glow overlay for event days */}
-              {hasEvs&&<div style={{
-                position:"absolute",inset:0,borderRadius:10,
-                background:`radial-gradient(ellipse at 50% 100%, ${evColor(dayEvs[0].type)}18, transparent 70%)`,
-                pointerEvents:"none",
-                border:`1.5px solid ${evColor(dayEvs[0].type)}60`,
-              }}/>}
+                // For spanning bars, remove border-radius on connected sides
+                const rTL = (isFirstDay||isFirstOfWeek) ? 5 : 0;
+                const rBL = (isFirstDay||isFirstOfWeek) ? 5 : 0;
+                const rTR = (isLastDay||isLastOfWeek)   ? 5 : 0;
+                const rBR = (isLastDay||isLastOfWeek)   ? 5 : 0;
+
+                return (
+                  <div key={ei}
+                    onClick={e=>{e.stopPropagation();openEdit(ev);}}
+                    style={{
+                      fontSize:9,fontWeight:700,fontFamily:T.mono,
+                      color: multi&&pos!=="single" ? col : col,
+                      background: multi&&pos!=="single"
+                        ? `${col}28`
+                        : `${col}20`,
+                      border:`1px solid ${col}${multi&&pos!=="single"?"55":"50"}`,
+                      // Negative margins to stretch spanning bars edge-to-edge
+                      marginLeft: (!isFirstDay&&!isFirstOfWeek) ? -4 : 0,
+                      marginRight:(!isLastDay &&!isLastOfWeek)  ? -4 : 0,
+                      borderLeftWidth:  (!isFirstDay&&!isFirstOfWeek) ? 0 : 1,
+                      borderRightWidth: (!isLastDay &&!isLastOfWeek)  ? 0 : 1,
+                      borderRadius:`${rTL}px ${rTR}px ${rBR}px ${rBL}px`,
+                      padding: multi&&pos!=="single" ? "2px 4px" : "1px 3px",
+                      marginBottom:2,
+                      overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
+                      boxShadow:`0 0 6px ${col}50`,
+                      lineHeight:1.4,
+                      cursor:"pointer",
+                    }}>
+                    {/* Only show label on start or week-start */}
+                    {(pos==="start"||pos==="single"||isFirstOfWeek)
+                      ? `${evIcon(ev.type)} ${ev.team||"Event"}`
+                      : pos==="end" ? "◀" : "·"
+                    }
+                  </div>
+                );
+              })}
+              {dayEvs.length>3&&<div style={{fontSize:8,color:T.dim,textAlign:"center"}}>+{dayEvs.length-3}</div>}
             </div>
           );
         })}
       </div>
 
-      {/* Event Type Legend */}
+      {/* Legend */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
         {EVENT_TYPES.map(et=>(
           <div key={et.id} style={{display:"flex",alignItems:"center",gap:5,background:`${et.color}12`,border:`1px solid ${et.color}35`,borderRadius:8,padding:"4px 10px"}}>
@@ -1531,16 +1575,18 @@ function CalendarTab({ identity }) {
           <Label text="Upcoming Events"/>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {upcoming.map((ev,i)=>{
-              const [y2,m2,d2] = ev.dateKey.split("-");
-              const dateLabel = new Date(Number(y2),Number(m2)-1,Number(d2)).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
-              const daysAway = Math.ceil((new Date(ev.dateKey)-new Date(todayStr))/(1000*60*60*24));
+              const fmt = (dk) => { const [y2,m2,d2]=dk.split("-"); return new Date(Number(y2),Number(m2)-1,Number(d2)).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); };
+              const isMulti  = ev.startDate!==ev.endDate;
+              const daysAway = Math.ceil((new Date(ev.startDate)-new Date(todayStr))/(1000*60*60*24));
+              const durDays  = Math.ceil((new Date(ev.endDate)-new Date(ev.startDate))/(1000*60*60*24))+1;
               const col = evColor(ev.type);
+              const isActive = ev.startDate<=todayStr && ev.endDate>=todayStr;
               return(
-                <div key={i} onClick={()=>openEdit(ev.dateKey,ev)} style={{
+                <div key={i} onClick={()=>openEdit(ev)} style={{
                   background:`linear-gradient(135deg,${col}14,${col}06)`,
                   border:`1.5px solid ${col}60`,
                   borderRadius:14,padding:"14px 16px",cursor:"pointer",
-                  boxShadow:`0 0 10px ${col}30, 0 0 20px ${col}15`,
+                  boxShadow:`0 0 10px ${col}30,0 0 20px ${col}15`,
                   transition:"all .2s",
                 }}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
@@ -1550,7 +1596,11 @@ function CalendarTab({ identity }) {
                       </div>
                       <div>
                         <div style={{fontSize:15,fontWeight:700,color:T.text}}>{ev.team||"Event"}</div>
-                        <div style={{fontSize:12,color:col,fontFamily:T.mono,marginTop:2}}>{dateLabel}{ev.time&&` · ${ev.time}`}</div>
+                        <div style={{fontSize:12,color:col,fontFamily:T.mono,marginTop:2}}>
+                          {isMulti ? `${fmt(ev.startDate)} → ${fmt(ev.endDate)}` : fmt(ev.startDate)}
+                          {ev.time&&!isMulti&&` · ${ev.time}`}
+                        </div>
+                        {isMulti&&<div style={{fontSize:11,color:T.sub,marginTop:2}}>📅 {durDays} days</div>}
                         {ev.location&&<div style={{fontSize:11,color:T.sub,marginTop:2}}>📍 {ev.location}</div>}
                       </div>
                     </div>
@@ -1561,14 +1611,12 @@ function CalendarTab({ identity }) {
                         fontSize:11,fontWeight:700,color:col,fontFamily:T.mono,
                         boxShadow:`0 0 6px ${col}40`,
                       }}>
-                        {daysAway===0?"TODAY":daysAway===1?"TOMORROW":`${daysAway}d`}
+                        {isActive?"🔴 NOW":daysAway===0?"TODAY":daysAway===1?"TOMORROW":`${daysAway}d`}
                       </div>
                       {ev.by&&<div style={{marginTop:4}}><ByBadge by={ev.by} at={ev.at}/></div>}
                     </div>
                   </div>
-                  {ev.notes&&<div style={{marginTop:10,fontSize:12,color:T.sub,lineHeight:1.5,borderTop:`1px solid ${col}20`,paddingTop:8}}>
-                    {ev.notes}
-                  </div>}
+                  {ev.notes&&<div style={{marginTop:10,fontSize:12,color:T.sub,lineHeight:1.5,borderTop:`1px solid ${col}20`,paddingTop:8}}>{ev.notes}</div>}
                 </div>
               );
             })}
@@ -1580,26 +1628,24 @@ function CalendarTab({ identity }) {
         <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"36px 20px",textAlign:"center",marginBottom:20}}>
           <div style={{fontSize:36,marginBottom:10}}>📅</div>
           <div style={{fontSize:15,color:T.sub}}>No upcoming events</div>
-          <div style={{fontSize:12,color:T.dim,marginTop:5}}>Tap any day on the calendar to add a tryout, game, or practice</div>
+          <div style={{fontSize:12,color:T.dim,marginTop:5}}>Tap any day on the calendar to add an event</div>
         </div>
       )}
 
-      {/* ── ADD / EDIT MODAL ── */}
+      {/* ── MODAL ── */}
       {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 0 0 0"}} onClick={()=>setModal(null)}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setModal(null)}>
           <div onClick={e=>e.stopPropagation()} style={{
             background:"#1a1d27",borderRadius:"20px 20px 0 0",
             border:`1px solid ${T.border2}`,borderBottom:"none",
             width:"100%",maxWidth:700,
             padding:"20px 18px",
-            paddingBottom:`calc(20px + env(safe-area-inset-bottom))`,
-            maxHeight:"85vh",overflowY:"auto",
+            paddingBottom:`calc(24px + env(safe-area-inset-bottom))`,
+            maxHeight:"90vh",overflowY:"auto",
           }}>
-            {/* Handle */}
             <div style={{width:36,height:4,borderRadius:2,background:T.dim,margin:"0 auto 20px"}}/>
-
             <div style={{fontSize:17,fontWeight:700,marginBottom:16}}>
-              {modal.mode==="edit" ? "Edit Event" : `Add Event — ${modal.date}`}
+              {modal.mode==="edit"?"Edit Event":"Add Event"}
             </div>
 
             {/* Event Type */}
@@ -1631,19 +1677,38 @@ function CalendarTab({ identity }) {
                 style={{...iStyle(evColor(form.type||"tryout"))}}/>
             </div>
 
-            {/* Time + Location row */}
+            {/* Start + End Date */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Start Date</div>
+                <input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value,endDate:f.endDate&&f.endDate>=e.target.value?f.endDate:e.target.value}))}
+                  style={{...iStyle(),colorScheme:"dark"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>End Date</div>
+                <input type="date" value={form.endDate||form.startDate||""} min={form.startDate||""} onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}
+                  style={{...iStyle(form.endDate&&form.endDate!==form.startDate?evColor(form.type||"tryout"):""),colorScheme:"dark"}}/>
+              </div>
+            </div>
+
+            {/* Multi-day indicator */}
+            {form.startDate&&form.endDate&&form.startDate!==form.endDate&&(
+              <div style={{background:`${evColor(form.type||"tryout")}15`,border:`1px solid ${evColor(form.type||"tryout")}40`,borderRadius:10,padding:"9px 14px",marginBottom:12,fontSize:12,color:evColor(form.type||"tryout"),fontFamily:T.mono}}>
+                📅 {Math.ceil((new Date(form.endDate)-new Date(form.startDate))/(1000*60*60*24))+1}-day event
+              </div>
+            )}
+
+            {/* Time + Location */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
               <div>
                 <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Time</div>
                 <input value={form.time||""} onChange={e=>setForm(f=>({...f,time:e.target.value}))}
-                  placeholder="e.g. 9:00 AM"
-                  style={{...iStyle()}}/>
+                  placeholder="e.g. 9:00 AM" style={{...iStyle()}}/>
               </div>
               <div>
                 <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Location</div>
                 <input value={form.location||""} onChange={e=>setForm(f=>({...f,location:e.target.value}))}
-                  placeholder="Field / City"
-                  style={{...iStyle()}}/>
+                  placeholder="Field / City" style={{...iStyle()}}/>
               </div>
             </div>
 
@@ -1651,11 +1716,11 @@ function CalendarTab({ identity }) {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,color:T.sub,marginBottom:6,fontWeight:600}}>Notes</div>
               <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
-                placeholder="Bring gear, contact info, what to wear, directions…"
+                placeholder="Bring gear, contact info, directions, what to prepare…"
                 rows={3} style={{...iStyle(),resize:"none"}}/>
             </div>
 
-            {/* Buttons */}
+            {/* Save */}
             <button onClick={saveEvent} style={{
               width:"100%",background:evColor(form.type||"tryout"),border:"none",
               borderRadius:14,padding:"16px",color:"#fff",fontSize:15,fontWeight:700,
@@ -1663,23 +1728,17 @@ function CalendarTab({ identity }) {
               boxShadow:`0 0 16px ${evColor(form.type||"tryout")}60`,
               transition:"all .2s",
             }}>
-              {modal.mode==="edit" ? "Save Changes" : "Add to Calendar"} ✓
+              {modal.mode==="edit"?"Save Changes ✓":"Add to Calendar ✓"}
             </button>
 
             {modal.mode==="edit"&&(
-              delConfirm ? (
+              delConfirm?(
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>deleteEvent(modal.date,modal.eventId)} style={{flex:1,background:"#3a0a0a",border:`1px solid ${T.red}`,borderRadius:12,padding:"13px",color:T.red,fontSize:14,fontWeight:700,fontFamily:T.sans,cursor:"pointer"}}>
-                    Yes, Delete
-                  </button>
-                  <button onClick={()=>setDelConfirm(null)} style={{flex:1,background:T.lift,border:`1px solid ${T.border}`,borderRadius:12,padding:"13px",color:T.sub,fontSize:14,fontFamily:T.sans,cursor:"pointer"}}>
-                    Cancel
-                  </button>
+                  <button onClick={()=>deleteEvent(form)} style={{flex:1,background:"#3a0a0a",border:`1px solid ${T.red}`,borderRadius:12,padding:"13px",color:T.red,fontSize:14,fontWeight:700,fontFamily:T.sans,cursor:"pointer"}}>Yes, Delete</button>
+                  <button onClick={()=>setDelConfirm(null)} style={{flex:1,background:T.lift,border:`1px solid ${T.border}`,borderRadius:12,padding:"13px",color:T.sub,fontSize:14,fontFamily:T.sans,cursor:"pointer"}}>Cancel</button>
                 </div>
-              ) : (
-                <button onClick={()=>setDelConfirm(true)} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",color:T.dim,fontSize:13,fontFamily:T.sans,cursor:"pointer"}}>
-                  Delete Event
-                </button>
+              ):(
+                <button onClick={()=>setDelConfirm(true)} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:12,padding:"12px",color:T.dim,fontSize:13,fontFamily:T.sans,cursor:"pointer"}}>Delete Event</button>
               )
             )}
           </div>
