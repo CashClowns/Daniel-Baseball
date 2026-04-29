@@ -85,6 +85,10 @@
       from { transform:scale(0) rotate(-15deg); opacity:0; }
       to   { transform:scale(1) rotate(0deg); opacity:1; }
     }
+    @keyframes float-star {
+      0%,100% { transform:translateY(0) rotate(0deg); }
+      50%      { transform:translateY(-8px) rotate(10deg); }
+    }
     @keyframes shimmer {
       0%   { background-position:200% center; }
       100% { background-position:-200% center; }
@@ -363,12 +367,13 @@ const iStyle=(color="")=>({
 function App() {
   const [fbReady,   setFbReady]   = useState(false);
   const [identity,  setIdentity]  = useState(null);  // "Dad"|"Daniel" — device-local
-  const [tab,       setTab]       = useState("workout");
+  const [tab, setTab] = useState("home");
   const [week,      setWeekRaw]   = useState(1);
   const [dayIdx,    setDayIdx]    = useState(0);
   const [session,   setSession]   = useState(null);
   const [completed, setCompleted] = useState([]);
   const [syncing,   setSyncing]   = useState(false);
+  const [celebrate, setCelebrate] = useState(null); // {week, level}
   const unsubRef = useRef(null);
 
   // Wait for Firebase module to load
@@ -435,6 +440,14 @@ function App() {
     const time = new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
     fbUpd(SK(week,dayIdx),{done:true,date,loggedBy,completedAt:`${date} ${time}`});
     fbSet(`${ROOT}/completed/${k}`,{key:k,week,dayIdx,date,loggedBy,completedAt:`${date} ${time}`});
+
+    // Check if this completes the week (all 3 days done)
+    const otherDays = [0,1,2].filter(d=>d!==dayIdx);
+    const othersDone = otherDays.every(d=>completed.some(c=>c.key===`w${week}_d${d}`));
+    if(othersDone) {
+      const lvl = LEVELS.find(l=>l.week===week) || LEVELS[LEVELS.length-1];
+      setTimeout(()=>setCelebrate({week, level:lvl}), 400);
+    }
   };
 
   if(!fbReady) return <Splash msg="Connecting to database…"/>;
@@ -448,14 +461,17 @@ function App() {
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100dvh",color:T.text}}>
       <Header week={week} ph={ph} completed={completed} identity={identity} idInfo={idInfo} onSwitch={()=>{localStorage.removeItem("djr_identity");setIdentity(null);}} syncing={syncing}/>
       <div className="main-content" style={{maxWidth:700,margin:"0 auto",padding:"16px 14px 0px",paddingBottom:"calc(140px + env(safe-area-inset-bottom))"}}>
+        {tab==="home"      && <HomeTab {...{week,setWeek,dayIdx,switchDay,session,completed,identity,setTab}}/>}
         {tab==="workout"   && <WorkoutTab {...{week,setWeek,dayIdx,switchDay,session,completed,upd,markDone,identity}}/>}
         {tab==="nutrition" && <NutritionTab week={week}/>}
         {tab==="progress"  && <ProgressTab {...{completed,week,setWeek,setDayIdx:switchDay,setTab}}/>}
         {tab==="pledge"    && <PledgeTab identity={identity}/>}
         {tab==="calendar"  && <CalendarTab identity={identity}/>}
         {tab==="notes"     && <NotesTab identity={identity}/>}
+        {tab==="more"      && <MoreTab setTab={setTab} identity={identity}/>}
       </div>
       <NavBar tab={tab} setTab={setTab} ph={ph}/>
+      {celebrate&&<CelebrationOverlay data={celebrate} onClose={()=>setCelebrate(null)}/>}
     </div>
   );
 }
@@ -561,23 +577,20 @@ function Header({week,ph,completed,identity,idInfo,onSwitch,syncing}){
 /* ─── BOTTOM NAV (iOS style) ──────────────────────────────── */
 function NavBar({tab,setTab,ph}){
   const items=[
-    ["workout","Workout",
+    ["home","Home",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    ],
+    ["workout","Train",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M8 3l-2 9 6 3 6-3-2-9"/></svg>
     ],
-    ["nutrition","Nutrition",
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
-    ],
-    ["progress","Progress",
+    ["progress","Stats",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     ],
-    ["pledge","Pledge",
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-    ],
-    ["calendar","Calendar",
+    ["calendar","Events",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     ],
-    ["notes","Notes",
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    ["more","More",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
     ],
   ];
   return(
@@ -1059,7 +1072,8 @@ function ProgressTab({completed,week,setWeek,setDayIdx,setTab}){
 
   return(
     <div>
-      {/* Hero */}
+      {/* Level Display */}
+      <LevelDisplay completed={completed}/>
       <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"20px",marginBottom:16,display:"flex",gap:20,alignItems:"center"}}>
         <div style={{position:"relative",flexShrink:0}}>
           <Ring pct={pct} color={T.green} size={84} stroke={7}/>
@@ -2042,6 +2056,606 @@ function NoteCard({ note, expanded, onExpand, onEdit, onPin }) {
             border:`1px solid ${col}40`,color:col,fontSize:13,cursor:"pointer",
             transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",
           }}>✏️</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── LEVEL SYSTEM ────────────────────────────────────────── */
+const LEVELS = [
+  { week:1, name:"Rookie",        icon:"🌱", color:"#6ab4ff", desc:"The journey begins. Every champion started right here.",         next:"Complete Week 2 to unlock Rising Star" },
+  { week:2, name:"Grinder",       icon:"💪", color:"#5aadff", desc:"You showed up twice. That's more than most will ever do.",       next:"Complete Week 3 to unlock Competitor" },
+  { week:3, name:"Competitor",    icon:"⚡", color:"#00d9a3", desc:"Foundation is set. You're building something real now.",          next:"Complete Week 4 to unlock Warrior" },
+  { week:4, name:"Warrior",       icon:"🔥", color:"#ffb84d", desc:"Halfway there. The grind is shaping a different athlete.",       next:"Complete Week 5 to unlock Elite" },
+  { week:5, name:"Elite",         icon:"🏅", color:"#ff8c00", desc:"You've entered the top tier. Few athletes reach this level.",    next:"Complete Week 6 to unlock Champion" },
+  { week:6, name:"Champion",      icon:"🏆", color:"#f5c842", desc:"You did it. Six weeks of commitment, discipline, and heart. Daniel Fajardo JR — a champion's mindset earned.", next:"The D1 journey has officially begun." },
+];
+const getLevel = (completedArr) => {
+  const weeksComplete = [1,2,3,4,5,6].filter(w=>[0,1,2].every(d=>completedArr.some(c=>c.key===`w${w}_d${d}`)));
+  if(weeksComplete.length===0) return null;
+  return LEVELS.find(l=>l.week===Math.max(...weeksComplete));
+};
+
+/* ─── CELEBRATION OVERLAY ─────────────────────────────────── */
+function CelebrationOverlay({ data, onClose }) {
+  const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
+  const particles = useRef([]);
+  const { level } = data;
+
+  const COLORS = ["#f5c842","#ff5c5c","#5aadff","#00d9a3","#ffb84d","#b197fc","#ff8c00","#fff","#4ade80"];
+
+  useEffect(()=>{
+    const canvas = canvasRef.current;
+    if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Launch bursts
+    const launchBurst = (x, y, count=60) => {
+      for(let i=0;i<count;i++){
+        const angle  = (Math.PI*2/count)*i + (Math.random()-.5)*.5;
+        const speed  = 3 + Math.random()*8;
+        const size   = 4 + Math.random()*6;
+        const color  = COLORS[Math.floor(Math.random()*COLORS.length)];
+        const shape  = Math.random()>.5?"circle":"rect";
+        const rot    = Math.random()*Math.PI*2;
+        const rotV   = (Math.random()-.5)*.3;
+        particles.current.push({
+          x, y,
+          vx: Math.cos(angle)*speed,
+          vy: Math.sin(angle)*speed - 2,
+          size, color, shape, rot, rotV,
+          alpha: 1, decay: .012+Math.random()*.01,
+          gravity: .15+Math.random()*.1,
+        });
+      }
+    };
+
+    // Staggered launches for wow factor
+    const launches = [
+      [0,    ()=>launchBurst(canvas.width*.3,  canvas.height*.25, 80)],
+      [120,  ()=>launchBurst(canvas.width*.7,  canvas.height*.2,  80)],
+      [250,  ()=>launchBurst(canvas.width*.5,  canvas.height*.35, 100)],
+      [400,  ()=>launchBurst(canvas.width*.15, canvas.height*.4,  60)],
+      [520,  ()=>launchBurst(canvas.width*.85, canvas.height*.3,  60)],
+      [650,  ()=>launchBurst(canvas.width*.5,  canvas.height*.15, 120)],
+      [900,  ()=>launchBurst(canvas.width*.4,  canvas.height*.5,  80)],
+      [1100, ()=>launchBurst(canvas.width*.6,  canvas.height*.45, 80)],
+      [1400, ()=>launchBurst(canvas.width*.5,  canvas.height*.2,  140)],
+      [1800, ()=>launchBurst(canvas.width*.3,  canvas.height*.3,  80)],
+      [2000, ()=>launchBurst(canvas.width*.7,  canvas.height*.25, 80)],
+    ];
+    launches.forEach(([delay, fn]) => setTimeout(fn, delay));
+
+    const animate = () => {
+      ctx.fillStyle = "rgba(12,13,18,0.18)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      particles.current = particles.current.filter(p=>p.alpha>0.02);
+      particles.current.forEach(p=>{
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.vy += p.gravity;
+        p.vx *= .98;
+        p.alpha -= p.decay;
+        p.rot   += p.rotV;
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur  = 6;
+
+        if(p.shape==="circle"){
+          ctx.beginPath();
+          ctx.arc(0,0,p.size/2,0,Math.PI*2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);
+        }
+        ctx.restore();
+      });
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", resize);
+    };
+  },[]);
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+      {/* Fireworks canvas — full bg */}
+      <canvas ref={canvasRef} style={{position:"absolute",inset:0,pointerEvents:"none"}}/>
+
+      {/* Dimmed backdrop */}
+      <div style={{position:"absolute",inset:0,background:"rgba(8,9,14,0.55)",backdropFilter:"blur(2px)"}} onClick={onClose}/>
+
+      {/* Level Card */}
+      <div style={{position:"relative",zIndex:10,maxWidth:340,width:"90%",textAlign:"center",animation:"badge-appear .5s cubic-bezier(.175,.885,.32,1.275) forwards"}}>
+        {/* Glow ring */}
+        <div style={{
+          width:120,height:120,borderRadius:"50%",
+          background:`radial-gradient(circle,${level.color}40,${level.color}10)`,
+          border:`3px solid ${level.color}`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          margin:"0 auto 20px",
+          boxShadow:`0 0 30px ${level.color}80,0 0 60px ${level.color}40,0 0 100px ${level.color}20`,
+          animation:"glow-pulse 1.5s ease-in-out infinite",
+          fontSize:52,
+        }}>
+          {level.icon}
+        </div>
+
+        {/* Unlock label */}
+        <div style={{
+          fontSize:11,letterSpacing:4,color:level.color,fontFamily:T.mono,
+          textTransform:"uppercase",marginBottom:8,
+          textShadow:`0 0 10px ${level.color}`,
+        }}>⭐ Level Unlocked</div>
+
+        {/* Level name */}
+        <div style={{
+          fontSize:38,fontWeight:700,marginBottom:8,letterSpacing:-.5,
+          background:`linear-gradient(135deg,${level.color},#fff,${level.color})`,
+          backgroundSize:"200% auto",
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+          backgroundClip:"text",
+          animation:"shimmer 2s linear infinite",
+        }}>{level.name}</div>
+
+        {/* Week badge */}
+        <div style={{
+          display:"inline-block",background:`${level.color}20`,
+          border:`1px solid ${level.color}60`,borderRadius:20,
+          padding:"4px 16px",fontSize:12,color:level.color,
+          fontFamily:T.mono,marginBottom:16,
+          boxShadow:`0 0 10px ${level.color}40`,
+        }}>WEEK {data.week} COMPLETE</div>
+
+        {/* Description */}
+        <div style={{
+          fontSize:14,color:"rgba(237,240,247,0.85)",lineHeight:1.7,
+          marginBottom:20,padding:"0 10px",
+        }}>{level.desc}</div>
+
+        {/* Next milestone */}
+        {data.week<6&&(
+          <div style={{
+            background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",
+            borderRadius:12,padding:"10px 16px",fontSize:12,color:T.sub,
+            marginBottom:24,lineHeight:1.5,
+          }}>
+            🎯 {level.next}
+          </div>
+        )}
+
+        {/* CTA */}
+        <button onClick={onClose} style={{
+          background:`linear-gradient(135deg,${level.color},${level.color}cc)`,
+          border:"none",borderRadius:14,
+          padding:"15px 40px",color:"#0d0d0d",
+          fontSize:16,fontWeight:700,fontFamily:T.sans,
+          cursor:"pointer",
+          boxShadow:`0 0 20px ${level.color}80,0 8px 30px rgba(0,0,0,.4)`,
+          transition:"transform .15s",
+          letterSpacing:.3,
+        }}>
+          {data.week===6 ? "🏆 View My Achievement" : "💪 Keep Going"}
+        </button>
+
+        {/* Stars scattered */}
+        {["★","✦","⭐","✧","★"].map((s,i)=>(
+          <div key={i} style={{
+            position:"absolute",
+            top: ["-20px","-10px","10px","-25px","0px"][i],
+            left: ["-30px","auto","auto","-10px","auto"][i],
+            right:["auto","-30px","-25px","auto","-15px"][i],
+            fontSize:[18,14,20,16,12][i],
+            color:level.color,
+            opacity:.7,
+            textShadow:`0 0 8px ${level.color}`,
+            animation:`glow-pulse ${1.5+i*.3}s ease-in-out infinite`,
+          }}>{s}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── LEVEL BADGE (shown in Progress tab) ─────────────────── */
+function LevelDisplay({ completed }) {
+  const lvl  = getLevel(completed);
+  const next = lvl ? LEVELS.find(l=>l.week===lvl.week+1) : LEVELS[0];
+  const weeksComplete = [1,2,3,4,5,6].filter(w=>[0,1,2].every(d=>completed.some(c=>c.key===`w${w}_d${d}`))).length;
+  const pct  = Math.round(weeksComplete/6*100);
+
+  return (
+    <div style={{
+      background: lvl
+        ? `linear-gradient(135deg,${lvl.color}18,${lvl.color}06)`
+        : "linear-gradient(135deg,#1a1e2b,#141720)",
+      border:`1.5px solid ${lvl?lvl.color+"50":T.border}`,
+      borderRadius:18,padding:"20px",marginBottom:20,
+      boxShadow: lvl?`0 0 20px ${lvl.color}30,0 0 40px ${lvl.color}10`:"none",
+    }}>
+      <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:16}}>
+        <div style={{
+          width:64,height:64,borderRadius:"50%",flexShrink:0,
+          background: lvl?`radial-gradient(circle,${lvl.color}30,${lvl.color}08)`:"rgba(255,255,255,0.04)",
+          border:`2px solid ${lvl?lvl.color+"70":T.border}`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:30,
+          boxShadow: lvl?`0 0 16px ${lvl.color}60`:"none",
+          animation: lvl?"glow-pulse 3s ease-in-out infinite":"none",
+        }}>
+          {lvl?lvl.icon:"🌱"}
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:10,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>
+            {lvl?"Current Level":"Start Training"}
+          </div>
+          <div style={{
+            fontSize:22,fontWeight:700,
+            color: lvl?lvl.color:T.sub,
+            textShadow: lvl?`0 0 12px ${lvl.color}80`:"none",
+          }}>
+            {lvl?lvl.name:"Not Started"}
+          </div>
+          {lvl&&<div style={{fontSize:11,color:T.sub,marginTop:2}}>Week {lvl.week} achieved</div>}
+        </div>
+        <div style={{textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:24,fontWeight:700,color:lvl?lvl.color:T.dim,fontFamily:T.mono}}>{weeksComplete}/6</div>
+          <div style={{fontSize:10,color:T.dim,fontFamily:T.mono}}>weeks</div>
+        </div>
+      </div>
+
+      {/* Progress bar across 6 levels */}
+      <div style={{marginBottom:lvl?.desc?12:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.dim,fontFamily:T.mono,marginBottom:6}}>
+          <span>Rookie</span><span>Champion</span>
+        </div>
+        <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:4,overflow:"hidden",position:"relative"}}>
+          <div style={{
+            width:`${pct}%`,height:"100%",borderRadius:4,
+            background: lvl
+              ? `linear-gradient(90deg,${LEVELS[0].color},${lvl.color})`
+              : T.dim,
+            transition:"width .8s cubic-bezier(.4,0,.2,1)",
+            boxShadow: lvl?`0 0 8px ${lvl.color}`:"none",
+          }}/>
+        </div>
+        {/* Level milestones */}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:5}}>
+          {LEVELS.map((l,i)=>{
+            const done = weeksComplete>=l.week;
+            return(
+              <div key={i} title={l.name} style={{
+                width:22,height:22,borderRadius:"50%",
+                background: done?l.color:`rgba(255,255,255,0.05)`,
+                border:`1.5px solid ${done?l.color:T.dim}`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:11,
+                boxShadow:done?`0 0 8px ${l.color}80`:"none",
+                transition:"all .4s",
+              }}>{done?l.icon:""}</div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Current level description */}
+      {lvl&&<div style={{fontSize:12,color:T.sub,lineHeight:1.6,padding:"10px 0 0",borderTop:`1px solid ${lvl.color}20`,marginTop:8}}>{lvl.desc}</div>}
+
+      {/* Next level teaser */}
+      {next&&weeksComplete<6&&(
+        <div style={{
+          marginTop:10,background:"rgba(255,255,255,0.03)",border:`1px solid ${T.border}`,
+          borderRadius:10,padding:"8px 12px",fontSize:11,color:T.dim,
+          display:"flex",alignItems:"center",gap:8,
+        }}>
+          <span style={{fontSize:16}}>{next.icon}</span>
+          <span>Next: <span style={{color:next.color,fontWeight:600}}>{next.name}</span> — {next.next.replace(/^Complete .+ to unlock /,"").replace(/^The .+$/,"All 6 weeks complete!")}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── QUOTES ──────────────────────────────────────────────── */
+const QUOTES = [
+  { text:"Hard work beats talent when talent doesn't work hard.", author:"Tim Notke" },
+  { text:"The difference between ordinary and extraordinary is that little extra.", author:"Jimmy Johnson" },
+  { text:"Champions keep playing until they get it right.", author:"Billie Jean King" },
+  { text:"You miss 100% of the shots you don't take.", author:"Wayne Gretzky" },
+  { text:"It's not the will to win that matters — everyone has that. It's the will to prepare to win.", author:"Paul 'Bear' Bryant" },
+  { text:"The more I practice, the luckier I get.", author:"Gary Player" },
+  { text:"Push yourself, because no one else is going to do it for you.", author:"Unknown" },
+  { text:"Great players are willing to give up their own personal glory for the good of the team.", author:"Babe Ruth" },
+  { text:"Baseball is ninety percent mental. The other half is physical.", author:"Yogi Berra" },
+  { text:"Every strike brings me closer to the next home run.", author:"Babe Ruth" },
+  { text:"Don't let the fear of striking out keep you from playing the game.", author:"Babe Ruth" },
+  { text:"There may be people who have more talent than you, but there's no excuse for anyone to work harder than you do.", author:"Derek Jeter" },
+  { text:"You can't put a limit on anything. The more you dream, the farther you get.", author:"Michael Phelps" },
+  { text:"Talent wins games, but teamwork and intelligence win championships.", author:"Michael Jordan" },
+  { text:"The secret to getting ahead is getting started.", author:"Mark Twain" },
+];
+const todayQuote = () => QUOTES[new Date().getDate() % QUOTES.length];
+
+/* ─── XP SYSTEM ───────────────────────────────────────────── */
+const calcXP = (completed) => {
+  const sessions = completed.length;
+  const weeksComplete = [1,2,3,4,5,6].filter(w=>[0,1,2].every(d=>completed.some(c=>c.key===`w${w}_d${d}`))).length;
+  return sessions * 500 + weeksComplete * 2000;
+};
+const XP_RANKS = [
+  { min:0,     max:499,   rank:"Rookie",    icon:"🌱", color:"#6ab4ff" },
+  { min:500,   max:1499,  rank:"Grinder",   icon:"💪", color:"#5aadff" },
+  { min:1500,  max:2999,  rank:"Competitor",icon:"⚡", color:"#00d9a3" },
+  { min:3000,  max:4999,  rank:"Warrior",   icon:"🔥", color:"#ffb84d" },
+  { min:5000,  max:7499,  rank:"Elite",     icon:"🏅", color:"#ff8c00" },
+  { min:7500,  max:99999, rank:"Champion",  icon:"🏆", color:"#f5c842" },
+];
+const getXPRank = (xp) => XP_RANKS.findLast(r=>xp>=r.min) || XP_RANKS[0];
+
+/* ─── HOME TAB ─────────────────────────────────────────────── */
+function HomeTab({ week, setWeek, dayIdx, switchDay, session, completed, identity, setTab }) {
+  const now       = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const quote     = todayQuote();
+  const xp        = calcXP(completed);
+  const rank      = getXPRank(xp);
+  const nextRank  = XP_RANKS[XP_RANKS.indexOf(rank)+1];
+  const xpToNext  = nextRank ? nextRank.min - xp : 0;
+  const xpPct     = nextRank ? Math.round((xp - rank.min)/(nextRank.min - rank.min)*100) : 100;
+  const ph        = PHASE[gPhase(week)];
+  const lvl       = getLevel(completed);
+
+  // Today's workout day mapping: Mon=1, Wed=3, Fri=5
+  const todayDayIdx = dayOfWeek===1?0:dayOfWeek===3?1:dayOfWeek===5?2:null;
+  const hasMissionToday = todayDayIdx!==null;
+  const todayMissionDone = hasMissionToday && completed.some(c=>c.key===`w${week}_d${todayDayIdx}`);
+
+  // Streak
+  const streak = (() => {
+    if(!completed.length) return 0;
+    const sorted=[...completed].sort((a,b)=>(b.week*3+b.dayIdx)-(a.week*3+a.dayIdx));
+    let s=1;
+    for(let i=1;i<sorted.length;i++){if((sorted[i-1].week*3+sorted[i-1].dayIdx)-(sorted[i].week*3+sorted[i].dayIdx)===1)s++;else break;}
+    return s;
+  })();
+
+  // Week progress
+  const weekDone = [0,1,2].filter(d=>completed.some(c=>c.key===`w${week}_d${d}`)).length;
+
+  return (
+    <div>
+      {/* Hero Greeting */}
+      <div style={{
+        background:`linear-gradient(135deg,${ph.bg},#0d0f14)`,
+        border:`1px solid ${ph.color}30`,
+        borderRadius:20,padding:"22px 20px",marginBottom:16,
+        position:"relative",overflow:"hidden",
+      }}>
+        {/* Background logo watermark */}
+        <div style={{position:"absolute",right:-20,top:-10,opacity:.06,fontSize:130,pointerEvents:"none"}}>⚾</div>
+        <div style={{fontSize:13,color:ph.color,fontFamily:T.mono,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>
+          {now.getHours()<12?"🌅 Good Morning":now.getHours()<17?"☀️ Good Afternoon":"🌙 Let's Get It"}
+        </div>
+        <div style={{fontSize:26,fontWeight:700,marginBottom:2,letterSpacing:-.5}}>
+          Daniel Fajardo JR
+        </div>
+        <div style={{fontSize:13,color:T.sub,marginBottom:16}}>14U · Infield · D1 Bound 🎯</div>
+
+        {/* XP Bar */}
+        <div style={{background:"rgba(0,0,0,.3)",borderRadius:12,padding:"10px 14px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:20}}>{rank.icon}</span>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:rank.color}}>{rank.rank}</div>
+                <div style={{fontSize:10,color:T.dim,fontFamily:T.mono}}>{xp.toLocaleString()} XP</div>
+              </div>
+            </div>
+            {nextRank&&<div style={{fontSize:11,color:T.sub,fontFamily:T.mono,textAlign:"right"}}>
+              <div style={{color:nextRank.color,fontWeight:700}}>{nextRank.rank} →</div>
+              <div>{xpToNext.toLocaleString()} XP away</div>
+            </div>}
+          </div>
+          <div style={{height:8,background:"rgba(255,255,255,0.08)",borderRadius:4,overflow:"hidden"}}>
+            <div style={{
+              width:`${xpPct}%`,height:"100%",borderRadius:4,
+              background:`linear-gradient(90deg,${rank.color},${nextRank?.color||rank.color})`,
+              boxShadow:`0 0 8px ${rank.color}`,
+              transition:"width .8s cubic-bezier(.4,0,.2,1)",
+            }}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats Row */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+        {[
+          [streak===0?"0":"🔥 "+streak, "Day Streak", T.amber],
+          [completed.length+"/18",      "Sessions",   T.teal],
+          [weekDone+"/3",               "This Week",  ph.color],
+        ].map(([val,lbl,col])=>(
+          <div key={lbl} style={{
+            background:T.card,border:`1px solid ${col}30`,borderRadius:14,
+            padding:"14px 10px",textAlign:"center",
+            boxShadow:completed.length>0?`0 0 12px ${col}15`:"none",
+          }}>
+            <div style={{fontSize:20,fontWeight:700,color:col,fontFamily:T.mono}}>{val}</div>
+            <div style={{fontSize:10,color:T.sub,marginTop:3}}>{lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* TODAY'S MISSION */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:8}}>⚡ Today's Mission</div>
+        {hasMissionToday ? (
+          <div onClick={()=>{switchDay(todayDayIdx);setTab("workout");}} style={{
+            background:todayMissionDone
+              ? "linear-gradient(135deg,#071610,#0a1f14)"
+              : `linear-gradient(135deg,${DAYS[todayDayIdx].color}18,${DAYS[todayDayIdx].color}06)`,
+            border:`2px solid ${todayMissionDone?T.green+"60":DAYS[todayDayIdx].color+"80"}`,
+            borderRadius:16,padding:"18px",cursor:"pointer",
+            boxShadow:todayMissionDone
+              ? `0 0 20px ${T.green}30`
+              : `0 0 20px ${DAYS[todayDayIdx].color}30`,
+            transition:"all .2s",
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <div style={{
+                width:54,height:54,borderRadius:14,flexShrink:0,
+                background:todayMissionDone?`${T.green}20`:`${DAYS[todayDayIdx].color}20`,
+                border:`2px solid ${todayMissionDone?T.green+"60":DAYS[todayDayIdx].color+"60"}`,
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,
+                boxShadow:`0 0 12px ${todayMissionDone?T.green:DAYS[todayDayIdx].color}40`,
+              }}>
+                {todayMissionDone?"🏆":DAYS[todayDayIdx].emoji}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:16,fontWeight:700,color:todayMissionDone?T.green:T.text}}>
+                  {todayMissionDone?"Mission Complete! 🎉":DAYS[todayDayIdx].focus}
+                </div>
+                <div style={{fontSize:12,color:T.sub,marginTop:3}}>
+                  {todayMissionDone
+                    ? `Week ${week} · ${DAYS[todayDayIdx].label}`
+                    : `Week ${week} · ${DAYS[todayDayIdx].label} · ${WK[week-1].sets}×${WK[week-1].reps}`
+                  }
+                </div>
+                {!todayMissionDone&&<div style={{fontSize:11,color:DAYS[todayDayIdx].color,marginTop:4,fontWeight:600}}>Tap to start → +500 XP</div>}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"18px",textAlign:"center"}}>
+            <div style={{fontSize:24,marginBottom:6}}>😤</div>
+            <div style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:4}}>Rest Day — Recovery Mode</div>
+            <div style={{fontSize:12,color:T.sub}}>Next session: {dayOfWeek<=1?"Monday":dayOfWeek<=3?"Wednesday":"Friday"}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Week Progress Bar */}
+      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"16px",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:14,fontWeight:700}}>Week {week} Progress</div>
+          <div style={{fontSize:11,color:ph.color,fontFamily:T.mono,fontWeight:700}}>{weekDone}/3 Sessions</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          {DAYS.map((d,i)=>{
+            const done=completed.some(c=>c.key===`w${week}_d${i}`);
+            return(
+              <div key={i} onClick={()=>{switchDay(i);setTab("workout");}} style={{
+                background:done?`${d.color}18`:T.lift,
+                border:`1.5px solid ${done?d.color+"70":T.border}`,
+                borderRadius:12,padding:"12px 8px",textAlign:"center",cursor:"pointer",
+                boxShadow:done?`0 0 10px ${d.color}40`:"none",
+                transition:"all .25s",
+              }}>
+                <div style={{fontSize:20,marginBottom:4}}>{done?"✅":d.emoji}</div>
+                <div style={{fontSize:11,fontWeight:700,color:done?d.color:T.sub,fontFamily:T.mono}}>{d.short}</div>
+                <div style={{fontSize:9,color:done?d.color:T.dim,marginTop:2}}>{done?"Done":"Tap"}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Motivational Quote */}
+      <div style={{
+        background:`linear-gradient(135deg,#1a1525,#131020)`,
+        border:`1px solid #b197fc30`,borderRadius:16,padding:"18px",marginBottom:16,
+        position:"relative",overflow:"hidden",
+      }}>
+        <div style={{position:"absolute",top:10,left:14,fontSize:36,opacity:.15,color:"#b197fc",fontFamily:"Georgia,serif",lineHeight:1}}>"</div>
+        <div style={{fontSize:13,color:T.sub,lineHeight:1.8,paddingLeft:20,paddingTop:4,fontStyle:"italic"}}>
+          {quote.text}
+        </div>
+        <div style={{fontSize:11,color:"#b197fc",fontFamily:T.mono,marginTop:10,paddingLeft:20,fontWeight:700}}>
+          — {quote.author}
+        </div>
+      </div>
+
+      {/* Current Level */}
+      {lvl&&(
+        <div onClick={()=>setTab("progress")} style={{
+          background:`linear-gradient(135deg,${lvl.color}15,${lvl.color}05)`,
+          border:`1.5px solid ${lvl.color}50`,borderRadius:16,padding:"14px 16px",
+          display:"flex",alignItems:"center",gap:14,cursor:"pointer",
+          boxShadow:`0 0 16px ${lvl.color}20`,
+        }}>
+          <div style={{fontSize:32,filter:`drop-shadow(0 0 8px ${lvl.color})`}}>{lvl.icon}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:lvl.color,fontFamily:T.mono,letterSpacing:2,marginBottom:3}}>CURRENT LEVEL</div>
+            <div style={{fontSize:18,fontWeight:700,color:lvl.color}}>{lvl.name}</div>
+            <div style={{fontSize:11,color:T.sub,marginTop:2}}>{lvl.next}</div>
+          </div>
+          <div style={{color:T.dim,fontSize:18}}>›</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── MORE TAB ─────────────────────────────────────────────── */
+function MoreTab({ setTab, identity }) {
+  const items = [
+    { id:"nutrition", icon:"🥗", label:"Nutrition Plan",    sub:"Daily meals & targets",     color:T.teal },
+    { id:"pledge",    icon:"🤝", label:"Our Pledge",        sub:"Commitment & signatures",   color:"#f5c842" },
+    { id:"notes",     icon:"📝", label:"Coach Notes",       sub:"Coaching & scouting log",   color:"#b197fc" },
+  ];
+  return (
+    <div>
+      <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:16}}>More Sections</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {items.map(item=>(
+          <div key={item.id} onClick={()=>setTab(item.id)} style={{
+            background:T.card,border:`1px solid ${item.color}30`,borderRadius:16,
+            padding:"16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,
+            transition:"all .2s",
+            boxShadow:`0 0 12px ${item.color}10`,
+          }}>
+            <div style={{width:46,height:46,borderRadius:12,background:`${item.color}18`,border:`1px solid ${item.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,boxShadow:`0 0 8px ${item.color}30`}}>
+              {item.icon}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:15,fontWeight:700}}>{item.label}</div>
+              <div style={{fontSize:12,color:T.sub,marginTop:2}}>{item.sub}</div>
+            </div>
+            <div style={{color:T.dim,fontSize:20}}>›</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Identity card */}
+      <div style={{marginTop:24,background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"16px"}}>
+        <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:12}}>Logged In As</div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:46,height:46,borderRadius:12,background:`${ID[identity]?.color}20`,border:`1px solid ${ID[identity]?.color}50`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>
+            {identity==="Daniel"?"D":"👨"}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:700,color:ID[identity]?.color}}>{identity}</div>
+            <div style={{fontSize:12,color:T.sub}}>{identity==="Daniel"?"Player · 14U Infield":"Coach & Father"}</div>
+          </div>
+          <button onClick={()=>{localStorage.removeItem("djr_identity");window.location.reload();}} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",color:T.dim,fontSize:12,fontFamily:T.sans,cursor:"pointer"}}>Switch</button>
         </div>
       </div>
     </div>
