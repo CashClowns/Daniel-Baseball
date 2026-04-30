@@ -2780,50 +2780,56 @@ function MoreTab({ setTab, identity }) {
     setSubLoading(false);
   };
 
-  const OS_KEY = "os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya";
-  const OS_APP = "bc93ad14-e32a-4e02-a487-3819d9e171de";
+  const [hypeError, setHypeError] = useState("");
 
-  const osSend = async (heading, msg, targetDaniel=false) => {
+  const osSend = async (heading, msg) => {
     const body = {
       app_id: OS_APP,
       included_segments: ["All"],
       headings: { en: heading },
       contents: { en: msg },
       url: "https://cashclowns.github.io/Daniel-Baseball/",
-      chrome_web_icon: "https://cashclowns.github.io/Daniel-Baseball/logo.png",
     };
-    const res = await fetch("https://onesignal.com/api/v1/notifications", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Basic ${OS_KEY}`,
-      },
-      body: JSON.stringify(body),
-    });
-    return res.json();
+    try {
+      const res = await fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Basic ${OS_KEY}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if(!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0,120)}`);
+      }
+      return res.json();
+    } catch(e) {
+      throw e;
+    }
   };
 
   const sendHype = async (msg) => {
     if(!msg.trim()) return;
     setHypeStatus("sending");
+    setHypeError("");
     try {
       const data = await osSend("⚾ From Dad 🔥", msg);
       if(data.id) {
         setHypeStatus("sent");
         setHypeCustom("");
+        setHypeError("");
         setTimeout(()=>setHypeStatus(""),3500);
-      } else if(data.errors?.includes("All included players are not subscribed")) {
-        setHypeStatus("nosub");
-        setTimeout(()=>setHypeStatus(""),5000);
       } else {
-        console.log("OneSignal:", data);
+        const errMsg = JSON.stringify(data).slice(0,150);
+        setHypeError(errMsg);
         setHypeStatus("error");
-        setTimeout(()=>setHypeStatus(""),4000);
+        setTimeout(()=>{setHypeStatus("");setHypeError("");},8000);
       }
     } catch(e) {
-      console.log("Send error:", e);
+      setHypeError(e.message||"Unknown error");
       setHypeStatus("error");
-      setTimeout(()=>setHypeStatus(""),4000);
+      setTimeout(()=>{setHypeStatus("");setHypeError("");},8000);
     }
   };
 
@@ -2920,12 +2926,33 @@ function MoreTab({ setTab, identity }) {
               fontSize:14,fontWeight:700,fontFamily:T.sans,
               cursor:hypeCustom.trim()?"pointer":"default",transition:"all .2s",
               boxShadow:hypeCustom.trim()?"0 0 16px #ff5c5c50":"none",
+              marginBottom: hypeError ? 8 : 0,
             }}>
               {hypeStatus==="sending"?"Sending… 🚀":
                hypeStatus==="sent"?"✓ Sent to Daniel!":
-               hypeStatus==="nosub"?"⚠️ Daniel needs to enable notifications first (More → Turn On)":
-               hypeStatus==="error"?"⚠️ Error — check console for details":
+               hypeStatus==="nosub"?"⚠️ Daniel needs to enable notifications first":
+               hypeStatus==="error"?"⚠️ Send failed":
                "🔥 Send Now"}
+            </button>
+
+            {/* Error detail */}
+            {hypeError&&(
+              <div style={{background:"#1f0a0a",border:"1px solid #ff5c5c40",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                <div style={{fontSize:11,color:"#ff5c5c",fontFamily:T.mono,wordBreak:"break-all",lineHeight:1.5}}>{hypeError}</div>
+              </div>
+            )}
+
+            {/* Dashboard fallback */}
+            <div style={{background:"#141720",border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
+              <div style={{fontSize:11,color:T.sub,marginBottom:6}}>Or send directly from the OneSignal dashboard:</div>
+              <a href="https://dashboard.onesignal.com" target="_blank" rel="noopener" style={{
+                display:"block",background:"#1e2030",border:`1px solid ${T.blue}50`,
+                borderRadius:8,padding:"10px",textAlign:"center",
+                color:T.blue,fontSize:13,fontWeight:600,textDecoration:"none",
+              }}>
+                Open OneSignal Dashboard →
+              </a>
+            </div>
             </button>
           </div>
         </div>
