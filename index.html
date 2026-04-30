@@ -2688,8 +2688,6 @@ function MoreTab({ setTab, identity }) {
   const [subLoading, setSubLoading]= useState(false);
   const [subMsg,     setSubMsg]    = useState("");
   const [hypeCustom, setHypeCustom]= useState("");
-  const [hypeStatus, setHypeStatus]= useState("");
-  const [hypeError,  setHypeError] = useState("");
 
   const HYPE_PRESETS = [
     { label:"💪 Beast Mode",   msg:"Beast mode activated! Let's get it Daniel — you've got this! 💪🔥" },
@@ -2761,56 +2759,7 @@ function MoreTab({ setTab, identity }) {
     setSubLoading(false);
   };
 
-  const osSend = async (heading, msg) => {
-    const body = {
-      app_id: "bc93ad14-e32a-4e02-a487-3819d9e171de",
-      included_segments: ["All"],
-      headings: { en: heading },
-      contents: { en: msg },
-      url: "https://cashclowns.github.io/Daniel-Baseball/",
-    };
-    try {
-      const res = await fetch("https://onesignal.com/api/v1/notifications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          
-        },
-        body: JSON.stringify(body),
-      });
-      if(!res.ok) {
-        const txt = await res.text();
-        throw new Error(`HTTP ${res.status}: ${txt.slice(0,120)}`);
-      }
-      return res.json();
-    } catch(e) {
-      throw e;
-    }
-  };
 
-  const sendHype = async (msg) => {
-    if(!msg.trim()) return;
-    setHypeStatus("sending");
-    setHypeError("");
-    try {
-      const data = await osSend("⚾ From Dad 🔥", msg);
-      if(data.id) {
-        setHypeStatus("sent");
-        setHypeCustom("");
-        setHypeError("");
-        setTimeout(()=>setHypeStatus(""),3500);
-      } else {
-        const errMsg = JSON.stringify(data).slice(0,150);
-        setHypeError(errMsg);
-        setHypeStatus("error");
-        setTimeout(()=>{setHypeStatus("");setHypeError("");},8000);
-      }
-    } catch(e) {
-      setHypeError(e.message||"Unknown error");
-      setHypeStatus("error");
-      setTimeout(()=>{setHypeStatus("");setHypeError("");},8000);
-    }
-  };
 
   const menuItems = [
     { id:"nutrition", icon:"🥗", label:"Nutrition Plan",   sub:"Daily meals & phase targets", color:T.teal  },
@@ -2869,73 +2818,40 @@ function MoreTab({ setTab, identity }) {
 
       {/* SEND HYPE — Dad only */}
       {identity==="Dad"&&(
-        <div style={{background:T.card,border:`1px solid #ff5c5c30`,borderRadius:18,overflow:"hidden",marginBottom:16,
-          boxShadow:"0 0 16px #ff5c5c10"}}>
+        <div style={{background:T.card,border:`1px solid #ff5c5c30`,borderRadius:18,overflow:"hidden",marginBottom:16}}>
           <div style={{background:"#1f0a0a",padding:"14px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:24}}>🔥</span>
             <div>
               <div style={{fontSize:15,fontWeight:700}}>Send Hype to Daniel</div>
-              <div style={{fontSize:11,color:T.sub,marginTop:1}}>Push a message straight to his phone right now</div>
+              <div style={{fontSize:11,color:T.sub,marginTop:1}}>Opens OneSignal — fires to his phone instantly</div>
             </div>
           </div>
           <div style={{padding:"14px 18px"}}>
-            {/* Quick Presets */}
             <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Quick Hype</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
               {HYPE_PRESETS.map((p,i)=>(
-                <button key={i} onClick={()=>sendHype(p.msg)} style={{
+                <a key={i} href="https://dashboard.onesignal.com/apps/bc93ad14-e32a-4e02-a487-3819d9e171de/notifications/new" target="_blank" rel="noopener" style={{
                   background:"#1a1e2b",border:`1px solid ${T.border2}`,borderRadius:10,
                   padding:"10px 8px",color:T.text,fontSize:12,fontFamily:T.sans,
-                  cursor:"pointer",textAlign:"left",transition:"all .2s",
-                  lineHeight:1.4,
-                }}>{p.label}</button>
+                  cursor:"pointer",textAlign:"left",lineHeight:1.4,textDecoration:"none",
+                  display:"block",
+                }}>{p.label}</a>
               ))}
             </div>
-
-            {/* Custom message */}
-            <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Custom Message</div>
             <textarea value={hypeCustom} onChange={e=>setHypeCustom(e.target.value)}
-              placeholder="Type your own message to Daniel…"
+              placeholder="Type a message, then tap Send below…"
               rows={3} style={{...iStyle(),resize:"none",marginBottom:10}}/>
-            <button onClick={()=>sendHype(hypeCustom)} disabled={!hypeCustom.trim()||hypeStatus==="sending"} style={{
-              width:"100%",
-              background:hypeCustom.trim()?"linear-gradient(135deg,#ff5c5c,#ff8c00)":"#1a1e2b",
-              border:`1px solid ${hypeCustom.trim()?"#ff5c5c":T.border}`,
-              borderRadius:12,padding:"14px",color:hypeCustom.trim()?"#fff":T.dim,
-              fontSize:14,fontWeight:700,fontFamily:T.sans,
-              cursor:hypeCustom.trim()?"pointer":"default",transition:"all .2s",
-              boxShadow:hypeCustom.trim()?"0 0 16px #ff5c5c50":"none",
-              marginBottom: hypeError ? 8 : 0,
-            }}>
-              {hypeStatus==="sending"?"Sending… 🚀":
-               hypeStatus==="sent"?"✓ Sent to Daniel!":
-               hypeStatus==="nosub"?"⚠️ Daniel needs to enable notifications first":
-               hypeStatus==="error"?"⚠️ Send failed":
-               "🔥 Send Now"}
-            </button>
-
-            {/* Error detail */}
-            {hypeError&&(
-              <div style={{background:"#1f0a0a",border:"1px solid #ff5c5c40",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-                <div style={{fontSize:11,color:"#ff5c5c",fontFamily:T.mono,wordBreak:"break-all",lineHeight:1.5}}>{hypeError}</div>
-              </div>
-            )}
-
-            {/* Dashboard fallback */}
-            <div style={{background:"#141720",border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
-              <div style={{fontSize:11,color:T.sub,marginBottom:6}}>Or send directly from the OneSignal dashboard:</div>
-              <a href="https://dashboard.onesignal.com" target="_blank" rel="noopener" style={{
-                display:"block",background:"#1e2030",border:`1px solid ${T.blue}50`,
-                borderRadius:8,padding:"10px",textAlign:"center",
-                color:T.blue,fontSize:13,fontWeight:600,textDecoration:"none",
-              }}>
-                Open OneSignal Dashboard →
-              </a>
-            </div>
-            </button>
+            <a href="https://dashboard.onesignal.com/apps/bc93ad14-e32a-4e02-a487-3819d9e171de/notifications/new" target="_blank" rel="noopener" style={{
+              display:"block",background:"linear-gradient(135deg,#ff5c5c,#ff8c00)",
+              borderRadius:12,padding:"14px",textAlign:"center",
+              color:"#fff",fontSize:14,fontWeight:700,textDecoration:"none",
+              boxShadow:"0 0 16px #ff5c5c40",marginBottom:4,
+            }}>🔥 Open Send Hype Dashboard</a>
           </div>
         </div>
       )}
+
+      
 
       {/* Menu Items */}
       <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:10}}>More Sections</div>
