@@ -515,7 +515,11 @@ function App() {
       // Send push notification for week complete
       setTimeout(()=>{
         fetch("https://onesignal.com/api/v1/notifications",{
-          method:"POST",headers:{"Content-Type":"application/json"},
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya",
+          },
           body:JSON.stringify({
             app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
             filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
@@ -534,7 +538,11 @@ function App() {
       ];
       setTimeout(()=>{
         fetch("https://onesignal.com/api/v1/notifications",{
-          method:"POST",headers:{"Content-Type":"application/json"},
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya",
+          },
           body:JSON.stringify({
             app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
             filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
@@ -2790,30 +2798,43 @@ function MoreTab({ setTab, identity }) {
     setSubLoading(false);
   };
 
-  // Send hype via OneSignal REST API (targets Daniel's device tagged as "Daniel")
+  const OS_KEY = "os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya";
+  const OS_APP = "bc93ad14-e32a-4e02-a487-3819d9e171de";
+
   const sendHype = async (msg) => {
     if(!msg.trim()) return;
     setHypeStatus("sending");
     try {
       const res = await fetch("https://onesignal.com/api/v1/notifications", {
         method:"POST",
-        headers:{ "Content-Type":"application/json" },
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":`Basic ${OS_KEY}`,
+        },
         body: JSON.stringify({
-          app_id: "bc93ad14-e32a-4e02-a487-3819d9e171de",
-          filters: [{ field:"tag", key:"role", relation:"=", value:"Daniel" }],
-          headings: { en:"⚾ From Dad" },
+          app_id: OS_APP,
+          filters: [{ field:"tag", key:"player", relation:"=", value:"DanielFajardo" }],
+          headings: { en:"⚾ From Dad 🔥" },
           contents: { en: msg },
           url: "https://cashclowns.github.io/Daniel-Baseball/",
           chrome_web_icon: "https://cashclowns.github.io/Daniel-Baseball/logo.png",
         }),
       });
       const data = await res.json();
-      if(data.id || data.recipients >= 0) {
+      if(data.id) {
         setHypeStatus("sent");
-        setHypeMsg(""); setHypeCustom("");
-        setTimeout(()=>setHypeStatus(""),3000);
-      } else { setHypeStatus("error"); setTimeout(()=>setHypeStatus(""),3000); }
-    } catch { setHypeStatus("error"); setTimeout(()=>setHypeStatus(""),3000); }
+        setHypeCustom("");
+        setTimeout(()=>setHypeStatus(""),3500);
+      } else {
+        console.log("OneSignal error:", data);
+        setHypeStatus("error");
+        setTimeout(()=>setHypeStatus(""),3500);
+      }
+    } catch(e) {
+      console.log("Send error:", e);
+      setHypeStatus("error");
+      setTimeout(()=>setHypeStatus(""),3500);
+    }
   };
 
   const menuItems = [
