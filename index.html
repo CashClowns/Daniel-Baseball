@@ -2687,7 +2687,6 @@ function MoreTab({ setTab, identity }) {
   const [subbed,     setSubbed]    = useState(false);
   const [subLoading, setSubLoading]= useState(false);
   const [subMsg,     setSubMsg]    = useState("");
-  const [hypeCustom, setHypeCustom]= useState("");
 
   const HYPE_PRESETS = [
     { label:"💪 Beast Mode",   msg:"Beast mode activated! Let's get it Daniel — you've got this! 💪🔥" },
@@ -2697,6 +2696,43 @@ function MoreTab({ setTab, identity }) {
     { label:"🏆 Champion",     msg:"Champions don't quit. Champions don't make excuses. You are a champion Daniel! 🏆" },
     { label:"❤️ Proud of You", msg:"I'm so proud of the work you're putting in. You're becoming something special. Love you son ❤️⚾" },
   ];
+
+  const [hypeCustom,      setHypeCustom]      = useState("");
+  const [hypeWorkerStatus,setHypeWorkerStatus] = useState("");
+  const [hypeWorkerMsg,   setHypeWorkerMsg]    = useState("");
+
+  const sendHypeWorker = async (msg) => {
+    if(!msg.trim()) return;
+    setHypeWorkerStatus("sending"); setHypeWorkerMsg("");
+    try {
+      const res = await fetch("https://baseball-hype.daniel-fajardo.workers.dev", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          app_id: "bc93ad14-e32a-4e02-a487-3819d9e171de",
+          included_segments: ["All"],
+          headings: {en:"⚾ From Dad 🔥"},
+          contents: {en: msg},
+          url: "https://cashclowns.github.io/Daniel-Baseball/",
+        }),
+      });
+      const data = await res.json();
+      if(data.id) {
+        setHypeWorkerStatus("sent");
+        setHypeCustom("");
+        setHypeWorkerMsg(`Sent to ${data.recipients||1} device(s)!`);
+        setTimeout(()=>{setHypeWorkerStatus("");setHypeWorkerMsg("");},4000);
+      } else {
+        setHypeWorkerStatus("error");
+        setHypeWorkerMsg(JSON.stringify(data).slice(0,80));
+        setTimeout(()=>{setHypeWorkerStatus("");setHypeWorkerMsg("");},5000);
+      }
+    } catch(e) {
+      setHypeWorkerStatus("error");
+      setHypeWorkerMsg(e.message||"Network error");
+      setTimeout(()=>{setHypeWorkerStatus("");setHypeWorkerMsg("");},5000);
+    }
+  };
 
   useEffect(()=>{
     const check = async () => {
@@ -2818,41 +2854,56 @@ function MoreTab({ setTab, identity }) {
 
       {/* SEND HYPE — Dad only */}
       {identity==="Dad"&&(
-        <div style={{background:T.card,border:`1px solid #ff5c5c30`,borderRadius:18,overflow:"hidden",marginBottom:16}}>
+        <div style={{background:T.card,border:`1px solid #ff5c5c30`,borderRadius:18,overflow:"hidden",marginBottom:16,boxShadow:"0 0 16px #ff5c5c10"}}>
           <div style={{background:"#1f0a0a",padding:"14px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:24}}>🔥</span>
             <div>
               <div style={{fontSize:15,fontWeight:700}}>Send Hype to Daniel</div>
-              <div style={{fontSize:11,color:T.sub,marginTop:1}}>Opens OneSignal — fires to his phone instantly</div>
+              <div style={{fontSize:11,color:T.sub,marginTop:1}}>Push a message straight to his phone</div>
             </div>
           </div>
           <div style={{padding:"14px 18px"}}>
             <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Quick Hype</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
               {HYPE_PRESETS.map((p,i)=>(
-                <a key={i} href="https://dashboard.onesignal.com/apps/bc93ad14-e32a-4e02-a487-3819d9e171de/notifications/new" target="_blank" rel="noopener" style={{
+                <button key={i} onClick={()=>sendHypeWorker(p.msg)} style={{
                   background:"#1a1e2b",border:`1px solid ${T.border2}`,borderRadius:10,
                   padding:"10px 8px",color:T.text,fontSize:12,fontFamily:T.sans,
-                  cursor:"pointer",textAlign:"left",lineHeight:1.4,textDecoration:"none",
-                  display:"block",
-                }}>{p.label}</a>
+                  cursor:"pointer",textAlign:"left",lineHeight:1.4,
+                }}>{p.label}</button>
               ))}
             </div>
             <textarea value={hypeCustom} onChange={e=>setHypeCustom(e.target.value)}
-              placeholder="Type a message, then tap Send below…"
+              placeholder="Type your own message to Daniel…"
               rows={3} style={{...iStyle(),resize:"none",marginBottom:10}}/>
+            <button onClick={()=>sendHypeWorker(hypeCustom)} disabled={!hypeCustom.trim()||hypeWorkerStatus==="sending"} style={{
+              width:"100%",
+              background:hypeCustom.trim()?"linear-gradient(135deg,#ff5c5c,#ff8c00)":"#1a1e2b",
+              border:`1px solid ${hypeCustom.trim()?"#ff5c5c":T.border}`,
+              borderRadius:12,padding:"14px",
+              color:hypeCustom.trim()?"#fff":T.dim,
+              fontSize:14,fontWeight:700,fontFamily:T.sans,
+              cursor:hypeCustom.trim()?"pointer":"default",
+              boxShadow:hypeCustom.trim()?"0 0 16px #ff5c5c50":"none",
+              transition:"all .2s",marginBottom:8,
+            }}>
+              {hypeWorkerStatus==="sending"?"Sending… 🚀":
+               hypeWorkerStatus==="sent"?"✓ Fired to Daniel! 🔥":
+               hypeWorkerStatus==="error"?"⚠️ Error — try the dashboard":
+               "🔥 Send Now"}
+            </button>
+            {hypeWorkerMsg&&(
+              <div style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:T.sub,marginBottom:6}}>{hypeWorkerMsg}</div>
+            )}
             <a href="https://dashboard.onesignal.com/apps/bc93ad14-e32a-4e02-a487-3819d9e171de/notifications/new" target="_blank" rel="noopener" style={{
-              display:"block",background:"linear-gradient(135deg,#ff5c5c,#ff8c00)",
-              borderRadius:12,padding:"14px",textAlign:"center",
-              color:"#fff",fontSize:14,fontWeight:700,textDecoration:"none",
-              boxShadow:"0 0 16px #ff5c5c40",marginBottom:4,
-            }}>🔥 Open Send Hype Dashboard</a>
+              display:"block",textAlign:"center",padding:"8px",
+              fontSize:11,color:T.dim,textDecoration:"none",
+            }}>Or use the dashboard →</a>
           </div>
         </div>
       )}
 
       
-
       {/* Menu Items */}
       <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:10}}>More Sections</div>
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
