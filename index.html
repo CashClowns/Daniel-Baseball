@@ -122,6 +122,8 @@
       animation: shimmer 3s linear infinite;
     }
   </style>
+  <!-- OneSignal Push Notifications -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head>
 <body>
 <div id="root"></div>
@@ -158,6 +160,49 @@ window.__fbGet = get;
 window.__fbOnValue = onValue;
 window.__fbUpdate  = update;
 window.__fbReady   = true;
+</script>
+
+<!-- OneSignal Init -->
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "bc93ad14-e32a-4e02-a487-3819d9e171de",
+      serviceWorkerParam: { scope: "/" },
+      promptOptions: {
+        slidedown: {
+          prompts: [{
+            type: "push",
+            autoPrompt: false,
+            text: {
+              actionMessage: "⚾ Get workout reminders & encouragement from Dad!",
+              acceptButton: "Yes, Let's Go!",
+              cancelButton: "Maybe Later",
+            },
+          }]
+        }
+      },
+      welcomeNotification: {
+        disable: false,
+        title: "D.F. Tracker 🔥",
+        message: "You're all set! Workout reminders and hype messages incoming.",
+      },
+      notifyButton: { enable: false },
+    });
+    window.__osReady = true;
+    // Helper: tag this device with the user's identity
+    window.__osTag = async (who) => {
+      await OneSignal.User.addTag("role", who);
+      await OneSignal.User.addTag("player", "DanielFajardo");
+    };
+    // Helper: prompt for permission
+    window.__osPrompt = () => OneSignal.Slidedown.promptPush();
+    // Helper: check subscription status
+    window.__osIsSubscribed = async () => {
+      try { return await OneSignal.User.PushSubscription.optedIn; }
+      catch { return false; }
+    };
+  });
 </script>
 
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -416,7 +461,10 @@ function App() {
   },[fbReady, identity, week, dayIdx]);
 
   const saveIdentity = (id) => {
-    localStorage.setItem("djr_identity",id); setIdentity(id);
+    localStorage.setItem("djr_identity", id);
+    setIdentity(id);
+    // Tag this device in OneSignal so we can target by role
+    if(window.__osTag) window.__osTag(id);
   };
 
   const setWeek = (w) => {
@@ -447,6 +495,38 @@ function App() {
     if(othersDone) {
       const lvl = LEVELS.find(l=>l.week===week) || LEVELS[LEVELS.length-1];
       setTimeout(()=>setCelebrate({week, level:lvl}), 400);
+      // Send push notification for week complete
+      setTimeout(()=>{
+        fetch("https://onesignal.com/api/v1/notifications",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
+            filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
+            headings:{en:`🏆 Week ${week} Complete!`},
+            contents:{en:`${lvl.icon} ${lvl.name} unlocked! You crushed Week ${week}. ${lvl.desc.slice(0,60)}…`},
+            url:"https://cashclowns.github.io/Daniel-Baseball/",
+          }),
+        }).catch(()=>{});
+      }, 1200);
+    } else {
+      // Single session complete notification
+      const msgs = [
+        "Session done! 💪 Every rep is making you better.",
+        "Work complete! 🔥 D1 bound — keep stacking sessions.",
+        "That's a wrap! ⚾ One more step toward your dream.",
+      ];
+      setTimeout(()=>{
+        fetch("https://onesignal.com/api/v1/notifications",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
+            filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
+            headings:{en:"✅ Workout Complete"},
+            contents:{en:msgs[Math.floor(Math.random()*msgs.length)]},
+            url:"https://cashclowns.github.io/Daniel-Baseball/",
+          }),
+        }).catch(()=>{});
+      }, 800);
     }
   };
 
@@ -2616,23 +2696,173 @@ function HomeTab({ week, setWeek, dayIdx, switchDay, session, completed, identit
 
 /* ─── MORE TAB ─────────────────────────────────────────────── */
 function MoreTab({ setTab, identity }) {
-  const items = [
-    { id:"nutrition", icon:"🥗", label:"Nutrition Plan",    sub:"Daily meals & targets",     color:T.teal },
-    { id:"pledge",    icon:"🤝", label:"Our Pledge",        sub:"Commitment & signatures",   color:"#f5c842" },
-    { id:"notes",     icon:"📝", label:"Coach Notes",       sub:"Coaching & scouting log",   color:"#b197fc" },
+  const [subbed,    setSubbed]    = useState(false);
+  const [subLoading,setSubLoading]= useState(false);
+  const [hypeMsg,   setHypeMsg]   = useState("");
+  const [hypeCustom,setHypeCustom]= useState("");
+  const [hypeStatus,setHypeStatus]= useState("");
+
+  const HYPE_PRESETS = [
+    { label:"💪 Beast Mode",   msg:"Beast mode activated! Let's get it Daniel — you've got this! 💪🔥" },
+    { label:"🔥 On Fire",      msg:"You're on FIRE today Daniel! Every rep is making you better. Keep pushing! 🔥⚾" },
+    { label:"⚾ D1 Bound",     msg:"D1 bound! Remember who you're becoming every single day. Work Daniel! ⚾🏆" },
+    { label:"🌅 Rise & Grind", msg:"Rise and grind! Champions are made when no one's watching. Let's go! 🌅💪" },
+    { label:"🏆 Champion",     msg:"Champions don't quit. Champions don't make excuses. You are a champion Daniel! 🏆" },
+    { label:"❤️ Proud of You", msg:"I'm so proud of the work you're putting in. You're becoming something special. Love you son ❤️⚾" },
   ];
+
+  useEffect(()=>{
+    (async()=>{
+      if(window.__osIsSubscribed) {
+        const s = await window.__osIsSubscribed();
+        setSubbed(s);
+      }
+    })();
+  },[]);
+
+  const enableNotifications = async () => {
+    setSubLoading(true);
+    try {
+      if(window.__osPrompt) {
+        await window.__osPrompt();
+        const s = await window.__osIsSubscribed();
+        setSubbed(s);
+        if(s && window.__osTag) window.__osTag(identity);
+      }
+    } catch(e) {}
+    setSubLoading(false);
+  };
+
+  // Send hype via OneSignal REST API (targets Daniel's device tagged as "Daniel")
+  const sendHype = async (msg) => {
+    if(!msg.trim()) return;
+    setHypeStatus("sending");
+    try {
+      const res = await fetch("https://onesignal.com/api/v1/notifications", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          app_id: "bc93ad14-e32a-4e02-a487-3819d9e171de",
+          filters: [{ field:"tag", key:"role", relation:"=", value:"Daniel" }],
+          headings: { en:"⚾ From Dad" },
+          contents: { en: msg },
+          url: "https://cashclowns.github.io/Daniel-Baseball/",
+          chrome_web_icon: "https://cashclowns.github.io/Daniel-Baseball/logo.png",
+        }),
+      });
+      const data = await res.json();
+      if(data.id || data.recipients >= 0) {
+        setHypeStatus("sent");
+        setHypeMsg(""); setHypeCustom("");
+        setTimeout(()=>setHypeStatus(""),3000);
+      } else { setHypeStatus("error"); setTimeout(()=>setHypeStatus(""),3000); }
+    } catch { setHypeStatus("error"); setTimeout(()=>setHypeStatus(""),3000); }
+  };
+
+  const menuItems = [
+    { id:"nutrition", icon:"🥗", label:"Nutrition Plan",   sub:"Daily meals & phase targets", color:T.teal  },
+    { id:"pledge",    icon:"🤝", label:"Our Pledge",       sub:"Father & son commitment",     color:"#f5c842"},
+    { id:"notes",     icon:"📝", label:"Coach Notes",      sub:"Scouting & coaching log",     color:"#b197fc"},
+  ];
+
   return (
     <div>
-      <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:16}}>More Sections</div>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {items.map(item=>(
+      {/* Notifications Card */}
+      <div style={{background:T.card,border:`1px solid ${subbed?T.green+"50":T.border}`,borderRadius:18,overflow:"hidden",marginBottom:16,
+        boxShadow:subbed?`0 0 16px ${T.green}20`:"none"}}>
+        <div style={{background:subbed?`${T.green}12`:"#14172a",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{fontSize:28}}>{subbed?"🔔":"🔕"}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:15,fontWeight:700}}>{subbed?"Notifications Active":"Enable Notifications"}</div>
+              <div style={{fontSize:12,color:T.sub,marginTop:2}}>{subbed?"You'll get workout reminders & hype messages":"Get workout reminders on your phone"}</div>
+            </div>
+            {!subbed&&(
+              <button onClick={enableNotifications} disabled={subLoading} style={{
+                background:`linear-gradient(135deg,${T.blue},#3a8eff)`,border:"none",
+                borderRadius:10,padding:"10px 14px",color:"#fff",fontSize:13,fontWeight:700,
+                fontFamily:T.sans,cursor:"pointer",flexShrink:0,
+                boxShadow:`0 0 12px ${T.blue}50`,
+              }}>{subLoading?"...":"Turn On"}</button>
+            )}
+            {subbed&&<div style={{background:`${T.green}20`,border:`1px solid ${T.green}50`,borderRadius:8,padding:"6px 12px",fontSize:12,color:T.green,fontWeight:700}}>✓ ON</div>}
+          </div>
+        </div>
+
+        {/* What you'll receive */}
+        <div style={{padding:"14px 18px"}}>
+          <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>What You'll Get</div>
+          {[
+            ["⏰","Workout Reminders","Mon, Wed, Fri mornings so you never miss a session"],
+            ["🏆","Session Complete","Celebration notification when a workout is logged"],
+            ["📅","Event Alerts","Night-before reminder for tryouts, games & showcases"],
+            ["❤️","Hype Messages","Custom encouragement from Dad anytime"],
+          ].map(([icon,title,desc])=>(
+            <div key={title} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
+              <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:T.text}}>{title}</div>
+                <div style={{fontSize:11,color:T.sub,marginTop:1}}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SEND HYPE — Dad only */}
+      {identity==="Dad"&&(
+        <div style={{background:T.card,border:`1px solid #ff5c5c30`,borderRadius:18,overflow:"hidden",marginBottom:16,
+          boxShadow:"0 0 16px #ff5c5c10"}}>
+          <div style={{background:"#1f0a0a",padding:"14px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:24}}>🔥</span>
+            <div>
+              <div style={{fontSize:15,fontWeight:700}}>Send Hype to Daniel</div>
+              <div style={{fontSize:11,color:T.sub,marginTop:1}}>Push a message straight to his phone right now</div>
+            </div>
+          </div>
+          <div style={{padding:"14px 18px"}}>
+            {/* Quick Presets */}
+            <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Quick Hype</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+              {HYPE_PRESETS.map((p,i)=>(
+                <button key={i} onClick={()=>sendHype(p.msg)} style={{
+                  background:"#1a1e2b",border:`1px solid ${T.border2}`,borderRadius:10,
+                  padding:"10px 8px",color:T.text,fontSize:12,fontFamily:T.sans,
+                  cursor:"pointer",textAlign:"left",transition:"all .2s",
+                  lineHeight:1.4,
+                }}>{p.label}</button>
+              ))}
+            </div>
+
+            {/* Custom message */}
+            <div style={{fontSize:11,color:T.dim,fontFamily:T.mono,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Custom Message</div>
+            <textarea value={hypeCustom} onChange={e=>setHypeCustom(e.target.value)}
+              placeholder="Type your own message to Daniel…"
+              rows={3} style={{...iStyle(),resize:"none",marginBottom:10}}/>
+            <button onClick={()=>sendHype(hypeCustom)} disabled={!hypeCustom.trim()||hypeStatus==="sending"} style={{
+              width:"100%",
+              background:hypeCustom.trim()?"linear-gradient(135deg,#ff5c5c,#ff8c00)":"#1a1e2b",
+              border:`1px solid ${hypeCustom.trim()?"#ff5c5c":T.border}`,
+              borderRadius:12,padding:"14px",color:hypeCustom.trim()?"#fff":T.dim,
+              fontSize:14,fontWeight:700,fontFamily:T.sans,
+              cursor:hypeCustom.trim()?"pointer":"default",transition:"all .2s",
+              boxShadow:hypeCustom.trim()?"0 0 16px #ff5c5c50":"none",
+            }}>
+              {hypeStatus==="sending"?"Sending… 🚀":hypeStatus==="sent"?"✓ Sent to Daniel!":hypeStatus==="error"?"⚠️ Check OneSignal setup":"🔥 Send Now"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Items */}
+      <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:10}}>More Sections</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+        {menuItems.map(item=>(
           <div key={item.id} onClick={()=>setTab(item.id)} style={{
-            background:T.card,border:`1px solid ${item.color}30`,borderRadius:16,
-            padding:"16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,
-            transition:"all .2s",
-            boxShadow:`0 0 12px ${item.color}10`,
+            background:T.card,border:`1px solid ${item.color}25`,borderRadius:14,
+            padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,
           }}>
-            <div style={{width:46,height:46,borderRadius:12,background:`${item.color}18`,border:`1px solid ${item.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,boxShadow:`0 0 8px ${item.color}30`}}>
+            <div style={{width:44,height:44,borderRadius:12,background:`${item.color}18`,border:`1px solid ${item.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>
               {item.icon}
             </div>
             <div style={{flex:1}}>
@@ -2644,18 +2874,21 @@ function MoreTab({ setTab, identity }) {
         ))}
       </div>
 
-      {/* Identity card */}
-      <div style={{marginTop:24,background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:"16px"}}>
-        <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:12}}>Logged In As</div>
+      {/* Identity */}
+      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px"}}>
+        <div style={{fontSize:10,letterSpacing:3,color:T.dim,fontFamily:T.mono,textTransform:"uppercase",marginBottom:12}}>Device Profile</div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:46,height:46,borderRadius:12,background:`${ID[identity]?.color}20`,border:`1px solid ${ID[identity]?.color}50`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>
+          <div style={{width:44,height:44,borderRadius:12,background:`${ID[identity]?.color}20`,border:`1px solid ${ID[identity]?.color}50`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>
             {identity==="Daniel"?"D":"👨"}
           </div>
           <div style={{flex:1}}>
             <div style={{fontSize:16,fontWeight:700,color:ID[identity]?.color}}>{identity}</div>
             <div style={{fontSize:12,color:T.sub}}>{identity==="Daniel"?"Player · 14U Infield":"Coach & Father"}</div>
           </div>
-          <button onClick={()=>{localStorage.removeItem("djr_identity");window.location.reload();}} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",color:T.dim,fontSize:12,fontFamily:T.sans,cursor:"pointer"}}>Switch</button>
+          <button onClick={()=>{localStorage.removeItem("djr_identity");window.location.reload();}}
+            style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 14px",color:T.dim,fontSize:12,fontFamily:T.sans,cursor:"pointer"}}>
+            Switch
+          </button>
         </div>
       </div>
     </div>
