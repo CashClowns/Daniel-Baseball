@@ -512,28 +512,9 @@ function App() {
     if(othersDone) {
       const lvl = LEVELS.find(l=>l.week===week) || LEVELS[LEVELS.length-1];
       setTimeout(()=>setCelebrate({week, level:lvl}), 400);
-      // Send push notification for week complete
-      setTimeout(()=>{
-        fetch("https://onesignal.com/api/v1/notifications",{
-          method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya"},
-          body:JSON.stringify({app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",included_segments:["All"],headings:{en:`🏆 Week ${week} Complete!`},contents:{en:`${lvl.icon} ${lvl.name} unlocked! You crushed Week ${week}. ${lvl.desc.slice(0,60)}…`},url:"https://cashclowns.github.io/Daniel-Baseball/"}),
-        }).catch(()=>{});
-      }, 1200);
+      // Notifications sent via OneSignal dashboard
     } else {
-      // Single session complete notification
-      const msgs = [
-        "Session done! 💪 Every rep is making you better.",
-        "Work complete! 🔥 D1 bound — keep stacking sessions.",
-        "That's a wrap! ⚾ One more step toward your dream.",
-      ];
-      setTimeout(()=>{
-        fetch("https://onesignal.com/api/v1/notifications",{
-          method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya"},
-          body:JSON.stringify({app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",included_segments:["All"],headings:{en:"✅ Workout Complete"},contents:{en:msgs[Math.floor(Math.random()*msgs.length)]},url:"https://cashclowns.github.io/Daniel-Baseball/"}),
-        }).catch(()=>{});
-      }, 800);
+      // Session complete — notification via dashboard
     }
   };
 
@@ -2703,9 +2684,6 @@ function HomeTab({ week, setWeek, dayIdx, switchDay, session, completed, identit
 
 /* ─── MORE TAB ─────────────────────────────────────────────── */
 function MoreTab({ setTab, identity }) {
-  const OS_KEY = "os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya";
-  const OS_APP = "bc93ad14-e32a-4e02-a487-3819d9e171de";
-
   const [subbed,     setSubbed]    = useState(false);
   const [subLoading, setSubLoading]= useState(false);
   const [subMsg,     setSubMsg]    = useState("");
@@ -2785,7 +2763,7 @@ function MoreTab({ setTab, identity }) {
 
   const osSend = async (heading, msg) => {
     const body = {
-      app_id: OS_APP,
+      app_id: "bc93ad14-e32a-4e02-a487-3819d9e171de",
       included_segments: ["All"],
       headings: { en: heading },
       contents: { en: msg },
@@ -2796,7 +2774,7 @@ function MoreTab({ setTab, identity }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Basic ${OS_KEY}`,
+          
         },
         body: JSON.stringify(body),
       });
