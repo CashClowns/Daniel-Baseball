@@ -190,17 +190,34 @@ window.__fbReady   = true;
       notifyButton: { enable: false },
     });
     window.__osReady = true;
-    // Helper: tag this device with the user's identity
+    // Tag this device with the user's identity
     window.__osTag = async (who) => {
-      await OneSignal.User.addTag("role", who);
-      await OneSignal.User.addTag("player", "DanielFajardo");
+      try {
+        await OneSignal.User.addTag("role", who);
+        await OneSignal.User.addTag("player", "DanielFajardo");
+      } catch(e) { console.log("OneSignal tag error:", e); }
     };
-    // Helper: prompt for permission
-    window.__osPrompt = () => OneSignal.Slidedown.promptPush();
-    // Helper: check subscription status
+    // Prompt for permission using v16 API
+    window.__osPrompt = async () => {
+      try {
+        // v16: use Notifications.requestPermission
+        const result = await OneSignal.Notifications.requestPermission();
+        return result;
+      } catch(e) {
+        console.log("OneSignal prompt error:", e);
+        return false;
+      }
+    };
+    // Check subscription status using v16 API
     window.__osIsSubscribed = async () => {
-      try { return await OneSignal.User.PushSubscription.optedIn; }
-      catch { return false; }
+      try {
+        return OneSignal.Notifications.permission &&
+               OneSignal.User.PushSubscription.optedIn;
+      } catch(e) { return false; }
+    };
+    // Check native browser permission state
+    window.__osPermission = () => {
+      try { return Notification.permission; } catch { return "default"; }
     };
   });
 </script>
@@ -2696,11 +2713,12 @@ function HomeTab({ week, setWeek, dayIdx, switchDay, session, completed, identit
 
 /* ─── MORE TAB ─────────────────────────────────────────────── */
 function MoreTab({ setTab, identity }) {
-  const [subbed,    setSubbed]    = useState(false);
-  const [subLoading,setSubLoading]= useState(false);
-  const [hypeMsg,   setHypeMsg]   = useState("");
-  const [hypeCustom,setHypeCustom]= useState("");
-  const [hypeStatus,setHypeStatus]= useState("");
+  const [subbed,     setSubbed]    = useState(false);
+  const [subLoading, setSubLoading]= useState(false);
+  const [subMsg,     setSubMsg]    = useState("");
+  const [hypeMsg,    setHypeMsg]   = useState("");
+  const [hypeCustom, setHypeCustom]= useState("");
+  const [hypeStatus, setHypeStatus]= useState("");
 
   const HYPE_PRESETS = [
     { label:"💪 Beast Mode",   msg:"Beast mode activated! Let's get it Daniel — you've got this! 💪🔥" },
@@ -2712,24 +2730,63 @@ function MoreTab({ setTab, identity }) {
   ];
 
   useEffect(()=>{
-    (async()=>{
+    const check = async () => {
+      // Check native browser permission first
+      const perm = window.__osPermission ? window.__osPermission() : "default";
+      if(perm === "denied") {
+        setSubMsg("Notifications blocked. Go to iPhone Settings → Safari → Notifications to allow.");
+        return;
+      }
       if(window.__osIsSubscribed) {
         const s = await window.__osIsSubscribed();
         setSubbed(s);
       }
-    })();
+    };
+    check();
   },[]);
 
   const enableNotifications = async () => {
     setSubLoading(true);
+    setSubMsg("");
+
+    // Must be added to home screen on iOS
+    const isStandalone = window.navigator.standalone;
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+    if(isIOS && !isStandalone) {
+      setSubMsg("⚠️ Add this app to your Home Screen first, then open it from there to enable notifications.");
+      setSubLoading(false);
+      return;
+    }
+
+    // Check if already denied
+    const perm = window.__osPermission ? window.__osPermission() : "default";
+    if(perm === "denied") {
+      setSubMsg("Notifications are blocked. Open iPhone Settings → Safari → this site → Notifications → Allow.");
+      setSubLoading(false);
+      return;
+    }
+
     try {
-      if(window.__osPrompt) {
-        await window.__osPrompt();
-        const s = await window.__osIsSubscribed();
-        setSubbed(s);
-        if(s && window.__osTag) window.__osTag(identity);
+      if(!window.__osPrompt) {
+        setSubMsg("OneSignal is still loading — wait a moment and try again.");
+        setSubLoading(false);
+        return;
       }
-    } catch(e) {}
+      await window.__osPrompt();
+      // Wait a moment for subscription to register
+      await new Promise(r=>setTimeout(r,1500));
+      const s = await window.__osIsSubscribed();
+      setSubbed(s);
+      if(s) {
+        if(window.__osTag) window.__osTag(identity);
+        setSubMsg("✅ Notifications enabled!");
+      } else {
+        setSubMsg("Tap 'Allow' on the permission prompt to enable notifications.");
+      }
+    } catch(e) {
+      setSubMsg("Something went wrong. Make sure the app is added to your Home Screen.");
+    }
     setSubLoading(false);
   };
 
@@ -2783,10 +2840,15 @@ function MoreTab({ setTab, identity }) {
                 borderRadius:10,padding:"10px 14px",color:"#fff",fontSize:13,fontWeight:700,
                 fontFamily:T.sans,cursor:"pointer",flexShrink:0,
                 boxShadow:`0 0 12px ${T.blue}50`,
-              }}>{subLoading?"...":"Turn On"}</button>
+              }}>{subLoading?"Turning on…":"Turn On"}</button>
             )}
             {subbed&&<div style={{background:`${T.green}20`,border:`1px solid ${T.green}50`,borderRadius:8,padding:"6px 12px",fontSize:12,color:T.green,fontWeight:700}}>✓ ON</div>}
           </div>
+          {subMsg&&(
+            <div style={{marginTop:10,padding:"10px 14px",background:"rgba(255,255,255,0.05)",borderRadius:10,fontSize:12,color:subMsg.startsWith("✅")?T.green:T.amber,lineHeight:1.5}}>
+              {subMsg}
+            </div>
+          )}
         </div>
 
         {/* What you'll receive */}
