@@ -516,17 +516,8 @@ function App() {
       setTimeout(()=>{
         fetch("https://onesignal.com/api/v1/notifications",{
           method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            "Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya",
-          },
-          body:JSON.stringify({
-            app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
-            filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
-            headings:{en:`🏆 Week ${week} Complete!`},
-            contents:{en:`${lvl.icon} ${lvl.name} unlocked! You crushed Week ${week}. ${lvl.desc.slice(0,60)}…`},
-            url:"https://cashclowns.github.io/Daniel-Baseball/",
-          }),
+          headers:{"Content-Type":"application/json","Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya"},
+          body:JSON.stringify({app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",included_segments:["All"],headings:{en:`🏆 Week ${week} Complete!`},contents:{en:`${lvl.icon} ${lvl.name} unlocked! You crushed Week ${week}. ${lvl.desc.slice(0,60)}…`},url:"https://cashclowns.github.io/Daniel-Baseball/"}),
         }).catch(()=>{});
       }, 1200);
     } else {
@@ -539,17 +530,8 @@ function App() {
       setTimeout(()=>{
         fetch("https://onesignal.com/api/v1/notifications",{
           method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            "Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya",
-          },
-          body:JSON.stringify({
-            app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",
-            filters:[{field:"tag",key:"player",relation:"=",value:"DanielFajardo"}],
-            headings:{en:"✅ Workout Complete"},
-            contents:{en:msgs[Math.floor(Math.random()*msgs.length)]},
-            url:"https://cashclowns.github.io/Daniel-Baseball/",
-          }),
+          headers:{"Content-Type":"application/json","Authorization":"Basic os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya"},
+          body:JSON.stringify({app_id:"bc93ad14-e32a-4e02-a487-3819d9e171de",included_segments:["All"],headings:{en:"✅ Workout Complete"},contents:{en:msgs[Math.floor(Math.random()*msgs.length)]},url:"https://cashclowns.github.io/Daniel-Baseball/"}),
         }).catch(()=>{});
       }, 800);
     }
@@ -2801,39 +2783,47 @@ function MoreTab({ setTab, identity }) {
   const OS_KEY = "os_v2_app_xsj22fhdfjhafjehham5tylr3yyaxtzkqibutcubhwv3ujyvbkkvlasbzriwyiwdmqbjducwwqcqfogmy3lvcc5vkt4r5vq3opubjya";
   const OS_APP = "bc93ad14-e32a-4e02-a487-3819d9e171de";
 
+  const osSend = async (heading, msg, targetDaniel=false) => {
+    const body = {
+      app_id: OS_APP,
+      included_segments: ["All"],
+      headings: { en: heading },
+      contents: { en: msg },
+      url: "https://cashclowns.github.io/Daniel-Baseball/",
+      chrome_web_icon: "https://cashclowns.github.io/Daniel-Baseball/logo.png",
+    };
+    const res = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${OS_KEY}`,
+      },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+
   const sendHype = async (msg) => {
     if(!msg.trim()) return;
     setHypeStatus("sending");
     try {
-      const res = await fetch("https://onesignal.com/api/v1/notifications", {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "Authorization":`Basic ${OS_KEY}`,
-        },
-        body: JSON.stringify({
-          app_id: OS_APP,
-          filters: [{ field:"tag", key:"player", relation:"=", value:"DanielFajardo" }],
-          headings: { en:"⚾ From Dad 🔥" },
-          contents: { en: msg },
-          url: "https://cashclowns.github.io/Daniel-Baseball/",
-          chrome_web_icon: "https://cashclowns.github.io/Daniel-Baseball/logo.png",
-        }),
-      });
-      const data = await res.json();
+      const data = await osSend("⚾ From Dad 🔥", msg);
       if(data.id) {
         setHypeStatus("sent");
         setHypeCustom("");
         setTimeout(()=>setHypeStatus(""),3500);
+      } else if(data.errors?.includes("All included players are not subscribed")) {
+        setHypeStatus("nosub");
+        setTimeout(()=>setHypeStatus(""),5000);
       } else {
-        console.log("OneSignal error:", data);
+        console.log("OneSignal:", data);
         setHypeStatus("error");
-        setTimeout(()=>setHypeStatus(""),3500);
+        setTimeout(()=>setHypeStatus(""),4000);
       }
     } catch(e) {
       console.log("Send error:", e);
       setHypeStatus("error");
-      setTimeout(()=>setHypeStatus(""),3500);
+      setTimeout(()=>setHypeStatus(""),4000);
     }
   };
 
@@ -2931,7 +2921,11 @@ function MoreTab({ setTab, identity }) {
               cursor:hypeCustom.trim()?"pointer":"default",transition:"all .2s",
               boxShadow:hypeCustom.trim()?"0 0 16px #ff5c5c50":"none",
             }}>
-              {hypeStatus==="sending"?"Sending… 🚀":hypeStatus==="sent"?"✓ Sent to Daniel!":hypeStatus==="error"?"⚠️ Check OneSignal setup":"🔥 Send Now"}
+              {hypeStatus==="sending"?"Sending… 🚀":
+               hypeStatus==="sent"?"✓ Sent to Daniel!":
+               hypeStatus==="nosub"?"⚠️ Daniel needs to enable notifications first (More → Turn On)":
+               hypeStatus==="error"?"⚠️ Error — check console for details":
+               "🔥 Send Now"}
             </button>
           </div>
         </div>
