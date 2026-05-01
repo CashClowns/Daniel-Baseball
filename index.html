@@ -168,7 +168,8 @@ window.__fbReady   = true;
   OneSignalDeferred.push(async function(OneSignal) {
     await OneSignal.init({
       appId: "bc93ad14-e32a-4e02-a487-3819d9e171de",
-      serviceWorkerParam: { scope: "/" },
+      serviceWorkerParam: { scope: "/Daniel-Baseball/" },
+      serviceWorkerPath: "/Daniel-Baseball/OneSignalSDKWorker.js",
       promptOptions: {
         slidedown: {
           prompts: [{
