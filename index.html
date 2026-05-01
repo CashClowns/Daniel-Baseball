@@ -2773,8 +2773,14 @@ function MoreTab({ setTab, identity }) {
     }
 
     try {
+      // Auto-retry waiting for OneSignal to load (up to 5 seconds)
+      let tries = 0;
+      while(!window.__osPrompt && tries < 10) {
+        await new Promise(r=>setTimeout(r,500));
+        tries++;
+      }
       if(!window.__osPrompt) {
-        setSubMsg("OneSignal is still loading — wait a moment and try again.");
+        setSubMsg("⚠️ Could not load. Close the app fully and reopen from your Home Screen icon.");
         setSubLoading(false);
         return;
       }
@@ -2787,7 +2793,7 @@ function MoreTab({ setTab, identity }) {
         if(window.__osTag) window.__osTag(identity);
         setSubMsg("✅ Notifications enabled!");
       } else {
-        setSubMsg("Tap 'Allow' on the permission prompt to enable notifications.");
+        setSubMsg("Tap 'Allow' when iOS asks to enable notifications.");
       }
     } catch(e) {
       setSubMsg("Something went wrong. Make sure the app is added to your Home Screen.");
