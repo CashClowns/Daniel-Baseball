@@ -858,12 +858,42 @@ function WorkoutTab({week,setWeek,dayIdx,switchDay,session,completed,upd,markDon
   const cfg=WK[week-1], day=DAYS[dayIdx], ph=PHASE[gPhase(week)];
   const sk=`w${week}_d${dayIdx}`;
   const isDone = session.done||completed.some(c=>c.key===sk);
-  const exercises = session.exercises
-    ? (Array.isArray(session.exercises)?session.exercises:Object.values(session.exercises))
-    : [];
-  const warmup  = session.warmup ? (Array.isArray(session.warmup)?session.warmup:Object.values(session.warmup)) : [];
-  const cooldown = session.cooldown ? (Array.isArray(session.cooldown)?session.cooldown:Object.values(session.cooldown)) : [];
-  const exDone  = exercises.filter(e=>{ const s=Array.isArray(e.sets)?e.sets:Object.values(e.sets||{}); return s.length>0&&s.every(x=>x.done); }).length;
+
+  // Firebase strips false/empty values — rebuild arrays defensively
+  const numSets = cfg.sets;
+  const exercises = (() => {
+    const raw = session.exercises
+      ? (Array.isArray(session.exercises)?session.exercises:Object.values(session.exercises))
+      : [];
+    return DAYS[dayIdx].exercises.map((ex,i) => {
+      const d = raw[i] || {};
+      // Rebuild sets array — Firebase may have stripped empty objects
+      const rawSets = d.sets
+        ? (Array.isArray(d.sets) ? d.sets : Object.values(d.sets))
+        : [];
+      const sets = Array.from({length:numSets},(_,si) => {
+        const s = rawSets[si] || {};
+        return { done: s.done===true||s.done===1, reps:s.reps||"", by:s.by||"", at:s.at||"" };
+      });
+      return {...d, sets};
+    });
+  })();
+
+  // Warmup — Firebase strips false so use explicit array reconstruction
+  const warmup = Array.from({length:DAYS[dayIdx].warmup.length},(_,i) => {
+    const raw = session.warmup
+      ? (Array.isArray(session.warmup)?session.warmup:Object.values(session.warmup))
+      : [];
+    return raw[i]===true || raw[i]===1;
+  });
+  const cooldown = Array.from({length:DAYS[dayIdx].cooldown.length},(_,i) => {
+    const raw = session.cooldown
+      ? (Array.isArray(session.cooldown)?session.cooldown:Object.values(session.cooldown))
+      : [];
+    return raw[i]===true || raw[i]===1;
+  });
+
+  const exDone  = exercises.filter(e=>e.sets.every(s=>s.done)).length;
   const exTotal = exercises.length;
   const pct     = exTotal>0?Math.round(exDone/exTotal*100):0;
   const warmDone = warmup.filter(Boolean).length;
@@ -872,40 +902,70 @@ function WorkoutTab({week,setWeek,dayIdx,switchDay,session,completed,upd,markDon
   const [showCool, setShowCool] = useState(false);
   const [whoLogged, setWhoLogged] = useState(identity);
 
-  const s = stamp(identity);
+  const st = stamp(identity);
 
   const toggleWarmup = (i) => {
-    const a = [...warmup]; a[i] = !a[i];
-    // Store warmup as {done, by, at} per item
-    const meta = session.warmupMeta ? (Array.isArray(session.warmupMeta)?[...session.warmupMeta]:[...Object.values(session.warmupMeta)]) : Array(warmup.length).fill(null);
-    meta[i] = a[i] ? {by:identity,at:s.at} : null;
-    upd({warmup:a, warmupMeta:meta});
-  };
-  const toggleCooldown = (i) => {
-    const a = [...cooldown]; a[i] = !a[i];
-    const meta = session.cooldownMeta ? (Array.isArray(session.cooldownMeta)?[...session.cooldownMeta]:[...Object.values(session.cooldownMeta)]) : Array(cooldown.length).fill(null);
-    meta[i] = a[i] ? {by:identity,at:s.at} : null;
-    upd({cooldown:a, cooldownMeta:meta});
-  };
-  const updateEx = (i, patch) => {
-    const a = [...exercises]; a[i] = {...a[i],...patch};
-    upd({exercises:a});
-  };
-  const toggleSet = (ei, si) => {
-    const a=[...exercises];
-    const sets=Array.isArray(a[ei].sets)?[...a[ei].sets]:[...Object.values(a[ei].sets||{})];
-    const done=!sets[si].done;
-    sets[si]={...sets[si],done,...(done?{by:identity,at:s.at}:{by:"",at:""})};
-    a[ei]={...a[ei],sets}; upd({exercises:a});
-  };
-  const updateSetReps = (ei, si, val) => {
-    const a=[...exercises];
-    const sets=Array.isArray(a[ei].sets)?[...a[ei].sets]:[...Object.values(a[ei].sets||{})];
-    sets[si]={...sets[si],reps:val}; a[ei]={...a[ei],sets}; upd({exercises:a});
+    const a = warmup.map((v,idx)=>idx===i?!v:v);
+    const meta = Array.from({length:a.length},(_,idx)=>{
+      const existing = session.warmupMeta
+        ? (Array.isArray(session.warmupMeta)?session.warmupMeta:Object.values(session.warmupMeta))
+        : [];
+      if(idx===i) return a[i]?{by:identity,at:st.at}:null;
+      return existing[idx]||null;
+    });
+    // Store as object to avoid Firebase array issues
+    const warmupObj = {};
+    a.forEach((v,idx)=>{ warmupObj[idx]=v?1:0; });
+    upd({warmup:warmupObj, warmupMeta:meta});
   };
 
-  const warmupMeta = session.warmupMeta ? (Array.isArray(session.warmupMeta)?session.warmupMeta:Object.values(session.warmupMeta)) : [];
-  const cooldownMeta = session.cooldownMeta ? (Array.isArray(session.cooldownMeta)?session.cooldownMeta:Object.values(session.cooldownMeta)) : [];
+  const toggleCooldown = (i) => {
+    const a = cooldown.map((v,idx)=>idx===i?!v:v);
+    const meta = Array.from({length:a.length},(_,idx)=>{
+      const existing = session.cooldownMeta
+        ? (Array.isArray(session.cooldownMeta)?session.cooldownMeta:Object.values(session.cooldownMeta))
+        : [];
+      if(idx===i) return a[i]?{by:identity,at:st.at}:null;
+      return existing[idx]||null;
+    });
+    const cooldownObj = {};
+    a.forEach((v,idx)=>{ cooldownObj[idx]=v?1:0; });
+    upd({cooldown:cooldownObj, cooldownMeta:meta});
+  };
+
+  const updateEx = (i, patch) => {
+    const a = exercises.map((e,idx)=>idx===i?{...e,...patch}:e);
+    upd({exercises:a});
+  };
+
+  const toggleSet = (ei, si) => {
+    const a = exercises.map((e,eidx)=>{
+      if(eidx!==ei) return e;
+      const newSets = e.sets.map((s,sidx)=>{
+        if(sidx!==si) return s;
+        const done = !s.done;
+        return {...s, done, by:done?identity:"", at:done?st.at:""};
+      });
+      return {...e, sets:newSets};
+    });
+    upd({exercises:a});
+  };
+
+  const updateSetReps = (ei, si, val) => {
+    const a = exercises.map((e,eidx)=>{
+      if(eidx!==ei) return e;
+      const newSets = e.sets.map((s,sidx)=>sidx===si?{...s,reps:val}:s);
+      return {...e,sets:newSets};
+    });
+    upd({exercises:a});
+  };
+
+  const warmupMeta = session.warmupMeta
+    ? (Array.isArray(session.warmupMeta)?session.warmupMeta:Object.values(session.warmupMeta))
+    : [];
+  const cooldownMeta = session.cooldownMeta
+    ? (Array.isArray(session.cooldownMeta)?session.cooldownMeta:Object.values(session.cooldownMeta))
+    : [];
 
   return(
     <div>
