@@ -169,7 +169,7 @@ window.__fbReady   = true;
     await OneSignal.init({
       appId: "bc93ad14-e32a-4e02-a487-3819d9e171de",
       serviceWorkerParam: { scope: "/Daniel-Baseball/" },
-      serviceWorkerPath: "OneSignalSDKWorker.js",
+      serviceWorkerPath: "/Daniel-Baseball/OneSignalSDKWorker.js",
       promptOptions: {
         slidedown: {
           prompts: [{
@@ -768,44 +768,55 @@ function ExCard({ex,cfg,data,color,identity,onToggleSet,onUpdateSetReps,onChange
       </div>
 
       {/* Set Bubbles — always visible */}
-      <div style={{padding:"0 14px 16px",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <div style={{padding:"0 14px 16px",display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
         {sets.map((s,si)=>(
-          <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
-            <button
+          <div key={si} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+            {/* Tap target wrapper — bigger than button for easier thumb tapping */}
+            <div
               onClick={()=>onToggleSet(si)}
-              className={s.done?"set-done":""}
               style={{
-                "--gc": color+"99",
-                width:52,height:52,borderRadius:14,
+                width:64,height:64,borderRadius:16,
                 background:s.done
-                  ? `radial-gradient(circle at 35% 35%, ${color}ff, ${color}cc)`
+                  ? `radial-gradient(circle at 35% 35%, ${color}ff, ${color}bb)`
                   : "#1a1e2b",
-                border:`2px solid ${s.done?color:T.border2}`,
-                boxShadow:s.done?`0 0 8px ${color}88, 0 0 20px ${color}44`:"none",
-                color:s.done?"#fff":T.sub,
-                fontSize:13,fontWeight:700,fontFamily:T.mono,
-                cursor:"pointer",transition:"background .25s, border .25s, box-shadow .25s",
+                border:`2.5px solid ${s.done?color:T.border2}`,
+                boxShadow:s.done?`0 0 12px ${color}90, 0 0 24px ${color}50`:"0 0 0 rgba(0,0,0,0)",
+                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",
+                transition:"background .3s, border .3s, box-shadow .3s",
+                userSelect:"none",WebkitUserSelect:"none",
               }}>
               {s.done
-                ? <span className="check-icon-appear" style={{fontSize:18}}>✓</span>
-                : `S${si+1}`
+                ? <span style={{fontSize:24,lineHeight:1,color:"#fff",fontWeight:700}}>✓</span>
+                : <span style={{fontSize:16,fontWeight:700,fontFamily:T.mono,color:T.sub}}>S{si+1}</span>
               }
-            </button>
+            </div>
             {s.done&&s.by&&<ByBadge by={s.by} at={s.at}/>}
-            <input value={s.reps||""} onChange={e=>onUpdateSetReps(si,e.target.value)}
-              placeholder={cfg.reps} onClick={e=>e.stopPropagation()}
-              style={{width:52,background:s.done?`${color}15`:"#1a1e2b",border:`1px solid ${s.done?color+"60":T.border}`,borderRadius:8,color:s.done?color:T.sub,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none",transition:"all .25s"}}/>
+            {/* Reps input — separate from tap area */}
+            <input
+              value={s.reps||""}
+              onChange={e=>{e.stopPropagation();onUpdateSetReps(si,e.target.value);}}
+              onFocus={e=>e.stopPropagation()}
+              placeholder={cfg.reps}
+              style={{
+                width:64,background:s.done?`${color}15`:"#1a1e2b",
+                border:`1px solid ${s.done?color+"60":T.border}`,
+                borderRadius:8,color:s.done?color:T.sub,
+                padding:"6px 0",fontSize:16,fontFamily:T.mono,
+                textAlign:"center",outline:"none",WebkitAppearance:"none",
+                transition:"all .25s",
+              }}/>
           </div>
         ))}
         {/* Weight / Time field */}
         {(ex.wt||ex.timed)&&(
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
-            <div style={{width:52,height:52,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,fontSize:22}}>{ex.wt?"🏋️":"⏱️"}</div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+            <div style={{width:64,height:64,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,fontSize:24}}>{ex.wt?"🏋️":"⏱️"}</div>
             {(data.weightBy||data.timeBy)&&<ByBadge by={ex.wt?data.weightBy:data.timeBy} at={ex.wt?data.weightAt:data.timeAt}/>}
             <input value={ex.wt?(data.weight||""):(data.time||"")}
               onChange={e=>onChange(ex.wt?{weight:e.target.value,...stamp(identity)&&{weightBy:identity,weightAt:stamp(identity).at}}:{time:e.target.value,timeBy:identity,timeAt:stamp(identity).at})}
               placeholder={ex.wt?"lbs":"sec"}
-              style={{width:52,background:"#1a1e2b",border:`1px solid ${color}40`,borderRadius:8,color,padding:"5px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none"}}/>
+              style={{width:64,background:"#1a1e2b",border:`1px solid ${color}40`,borderRadius:8,color,padding:"6px 0",fontSize:16,fontFamily:T.mono,textAlign:"center",outline:"none",WebkitAppearance:"none"}}/>
           </div>
         )}
       </div>
